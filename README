@@ -1,0 +1,10 @@
+What is awesomeness?
+Well, its really not that awesome and probably won't work but the idea is pretty simple.
+
+Any HTTP server can host messages. Messages can be any length and can be updated by multiple people*.
+
+* People are proxied by providers who handle things like message aggregation, search, authentication, etc.
+
+Basically, you can be a user at admin@antimatter15.com and create messages on blahblah.com/ladfjfasdlkfj (if that site grants you permission).
+
+The metadata includes a list of children (and history of operations applied if OT is supported in the future). The tree can be traversed at any point to give something.
