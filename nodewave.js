@@ -1,7 +1,6 @@
 var http = require('http');
 var url = require('url');
 var crypto = require('crypto')
-var http = require('http');
 var msgs = {}; //meh, doesnt persist
 var signatures = {};
 var subscriptions = {};
