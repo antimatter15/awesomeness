@@ -29,3 +29,22 @@ Features:
 	Any message can be rendered as a root message and viewed as a root discussion.
 	Message-level ACLs
 	
+	
+Progress:
+	This is a PROTOTYPE and probably wont work.
+	
+Goals:
+	To create a working message server (the simple part)
+		Store messages
+			To RAM - DONE
+		Handle Subscribers - DONE
+		Authenticate Operations - DONE
+		Handle ACLs
+	To create a working proxy server (a bit harder)
+		Handle client/server requests
+		Send operations to message server
+		Apply operations received from message server
+	To create a basic client (pretty easy)
+		Handle client/server requests
+		recursively render subthreads
+		handle editing
