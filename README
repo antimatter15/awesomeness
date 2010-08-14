@@ -8,3 +8,15 @@ Any HTTP server can host messages. Messages can be any length and can be updated
 Basically, you can be a user at admin@antimatter15.com and create messages on blahblah.com/ladfjfasdlkfj (if that site grants you permission).
 
 The metadata includes a list of children (and history of operations applied if OT is supported in the future). The tree can be traversed at any point to give something.
+
+There are 3 big things:
+	Users
+	Message Servers
+  User Proxies
+
+
+Basically, users tell user proxies to do things. user proxies tell message servers to do things. message servers authenticate the request. message servers authenticate that user proxies have the permission to access or write. message servers write/edit the message. message servers tell the subscribed user proxies of changes. user proxies apply their changes. user proxies handle search. user proxies tell users.
+
+I could give you a bunch of squiggles, but that would take longer. And wouldn't clear anything up anyway.
+
+The prototype is written in Node.JS because this computer only has that installed.
