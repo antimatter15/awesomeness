@@ -40,7 +40,7 @@ function validateSignature(user, sig, data, callback, fail){
 			.digest('hex') == sig;
 		
 		if(valid){
-			callback();
+			callback(host);
 			console.log('signature win')
 		}else{
 			fail();
@@ -66,8 +66,9 @@ function validateSignature(user, sig, data, callback, fail){
 	}
 }
 
-function parseOps(res, ops){
+function parseOps(host, res, ops){
 	res.writeHead(200, {'Content-Type': 'text/plain'});
+	console.log(JSON.stringify(msgs))
 	var nops = ops.map(function(op){
 		console.log('parsing op type',op.type)
 		//todo: live json encoding
@@ -76,6 +77,7 @@ function parseOps(res, ops){
 			msgs[op.id] = {
 				id: op.id,
 				version: 0,
+				text: '',
 				history: [],
 				acl: {
 					def: {}
@@ -97,7 +99,7 @@ function parseOps(res, ops){
 			cap[i] = hcap[i];
 		}
 		
-		if(op.type == 'sub'){
+		if(op.type == 'sub'){ //does not need permissions?
 			if(!(op.id in subscriptions)){
 				subscriptions[op.id] = [];
 			}
@@ -111,6 +113,7 @@ function parseOps(res, ops){
 			return {
 				type: op.type,				
 				id: msg.id,
+				acl: msg.acl, //access control lists important
 				lastModified: msg.lastModified,
 				text: msg.text
 			}
@@ -122,9 +125,6 @@ function parseOps(res, ops){
 				history: msg.history
 			}
 		}else if(op.type == 'modify'){
-
-
-
 			if(cap.write){
 				msg.lastModified = +new Date;
 				msg.history.push(op);
@@ -161,7 +161,7 @@ function publish(id, op){
 		var req = cl.request('POST',u.pathname);
 		req.write(JSON.stringify({
 			id: id,
-			v: msgs.version,
+			version: msg.version,
 			op: op
 		}))
 		req.end();
@@ -177,6 +177,7 @@ http.createServer(function (req, res) {
 			res.end(); //is this valid node?
 			return;
 	}
+	console.log('got a request')
 	var chunks = '';
 	//TODO: live JSON parser
 	req.on('data', function(chunk){
@@ -184,10 +185,10 @@ http.createServer(function (req, res) {
 	})
 	req.on('end', function(){
 		console.log(JSON.stringify(req.headers))
-		validateSignature(req.headers.host, req.headers.sig, chunks, function(){
+		validateSignature(req.headers.host, req.headers.sig, chunks, function(host){
 			var json = JSON.parse(chunks);
 			console.log('DATA',chunks)
-			parseOps(res, json);	
+			parseOps(host, res, json);	
 		},function(){
 			res.end();
 		})
