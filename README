@@ -94,8 +94,31 @@ Message Specification:
 	{
 		id: URL
 		time: last modified time
-		
+		v: version of the message
+		//Chain: HostSpecific > MessageDefault > GlobalServerDefault
+		acl: {
+			def: {
+				//default
+			}
+			'http://google.com': {
+				//host properteis
+			}
+		}
+		text: '' //specifically OT'd text
+		children: []
 	}
 
 
-
+Proxy Server
+	host/getkey/signature?token
+		GET:
+			get the security token from a signature and set the other token
+	host/push
+		POST:
+			Update internal representation of a message
+			* signed
+	host/api
+		GET:
+			request the current state of a blip
+		POST:
+			set blip properties
