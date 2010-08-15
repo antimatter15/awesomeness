@@ -87,7 +87,7 @@ http.createServer(function (req, res) {
 			}
 		]))
 		res.end();
-	}else{
+	}else if(req.method == 'POST'){
 		var chunks = '';
 		//TODO: live JSON parser
 		req.on('data', function(chunk){
@@ -96,11 +96,6 @@ http.createServer(function (req, res) {
 		req.on('end', function(){
 			parseOps(res, JSON.parse(chunks));
 		})
-		signRequest('http://localhost:8124/', JSON.stringify([
-			{
-				
-			}
-			]))
 	}
 }).listen(8125, "127.0.0.1");
 console.log('Server running at http://127.0.0.1:8125/');
