@@ -4,7 +4,7 @@ var crypto = require('crypto')
 var msgs = {}; //meh, doesnt persist
 var signatures = {};
 var subscriptions = {};
-var hosts = /^.*$/; //all hosts are to be enabled
+
 
 /*
 	{ //message acl schema
@@ -24,11 +24,7 @@ function validateSignature(user, sig, data, callback, fail){
 	var u = url.parse(user); //URL
 	
 	var host = u.protocol+'//'+u.host; //host name
-	
-	if(!hosts.test(host)){
-		return fail();
-	}
-	
+
 	if(host in signatures){
 		//verify signature
 		console.log('verifying signature')
@@ -73,9 +69,14 @@ function parseOps(res, ops){
 				subscriptions[op.id] = [];
 			}
 			subscriptions[op.id].push(op.url);
+			return {
+				type: op.type,
+				id: op.id
+			}
 		}else if(op.type == 'load'){
 			var msg = msgs[op.id];
 			return {
+				type: op.type,				
 				id: msg.id,
 				lastModified: msg.lastModified,
 				text: msg.text
@@ -83,6 +84,7 @@ function parseOps(res, ops){
 		}else if(op.type == 'history'){
 			var msg = msgs[op.id];
 			return {
+				type: op.type,
 				id: msg.id,
 				history: msg.history
 			}
@@ -102,6 +104,7 @@ function parseOps(res, ops){
 			console.log('updated message to v',msg.version)
 			publish(op.id, op)
 			return {
+				type: op.type,
 				success: 'ftw'
 			}
 		}
@@ -135,7 +138,7 @@ http.createServer(function (req, res) {
 	if(req.method != 'POST'){
 			console.log('not real post waah')
 			res.writeHead(404, {'Content-Type': 'text/plain'});
-			res.write('FAIL')
+			res.write('FAIL NOT POST');
 			res.end(); //is this valid node?
 			return;
 	}

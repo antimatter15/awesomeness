@@ -4,6 +4,7 @@ var crypto = require('crypto')
 var secret = Math.random().toString(36).substr(3);
 var msgs = {}; //meh, doesnt persist
 
+
 function parseOps(res, ops){
 	res.writeHead(200, {'Content-Type': 'text/plain'});
 	res.write(JSON.stringify(ops.map(function(op){
@@ -14,12 +15,6 @@ function parseOps(res, ops){
 				id: msg.id,
 				lastModified: msg.lastModified,
 				text: msg.text
-			}
-		}else if(op.type == 'history'){
-			var msg = msgs[op.id];
-			return {
-				id: msg.id,
-				history: msg.history
 			}
 		}else if(op.type == 'modify'){
 			
@@ -34,7 +29,7 @@ function hostSig(host){
 
 var sigcache = {}
 
-function signRequest(uri, data){
+function signRequest(uri, data, callback){
 	console.log('signing request')
 	var u = url.parse(uri);
 	var cl = http.createClient(u.port||80, u.hostname);
@@ -58,15 +53,45 @@ function signRequest(uri, data){
 		})
 		res.on('end', function(){
 			//yay done
+			callback(all)
 			console.log('doneh')
 		})
 	})
+}
+
+function loadMessage(id, callback){
+	if(msgs[id]){
+		
+	}else{
+		var mid = url.parse(id);
+		signRequest(mid.protocol+'//'+mid.host, JSON.stringify([
+			{
+				type: 'sub',
+				id: mid.pathname.substr(1),
+				url: 'http://localhost:8125/push' //reference to self
+			},
+			{
+				type: 'history',
+				id: mid.pathname.substr(1)
+			}
+		]), function(){
+			
+		})
+	}
 }
 
 
 http.createServer(function (req, res) {
 	if(req.url == '/push'){
 		//update ping
+		var chunks = '';
+		//TODO: live JSON parser
+		req.on('data', function(chunk){
+			chunks += chunk;
+		})
+		req.on('end', function(){
+			JSON.parse(chunks)
+		})
 	}else if(req.url.substr(0,9) == '/get_key/'){
 		console.log('get key thingy')
 		if(sigcache[req.url.substr(9)]){
@@ -77,15 +102,9 @@ http.createServer(function (req, res) {
 		}
 		res.end();
 		//get key
-	}else if(req.url == '/test'){
+	}else if(req.url == '/get'){
 		res.writeHead(200,{})
-		signRequest('http://localhost:8124/', JSON.stringify([
-			{
-				type: 'modify',
-				id: Math.random().toString(36).substr(2,5),
-				text: 'cheesecake'
-			}
-		]))
+
 		res.end();
 	}else if(req.method == 'POST'){
 		var chunks = '';
