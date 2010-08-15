@@ -4,7 +4,14 @@ var crypto = require('crypto')
 var msgs = {}; //meh, doesnt persist
 var signatures = {};
 var subscriptions = {};
-
+//default message properties
+var gdefault = {
+	write: true,
+	write_text: true,
+	read_text: true,
+	read_meta: true,
+	write_meta: true
+}
 
 /*
 	{ //message acl schema
@@ -64,6 +71,32 @@ function parseOps(res, ops){
 	var nops = ops.map(function(op){
 		console.log('parsing op type',op.type)
 		//todo: live json encoding
+		
+		if(!(op.id in msgs)){ //todo: control over which hosts can create a blip
+			msgs[op.id] = {
+				id: op.id,
+				version: 0,
+				history: [],
+				acl: {
+					def: {}
+				}
+			}
+		}
+		
+		var msg = msgs[op.id];
+		
+		var cap = {};
+		var hcap = msg.acl[host];
+		for(var i in gdefault){
+			cap[i] = gdefault[i];
+		}
+		for(var i in msg.acl.def){
+			cap[i] = msg.acl.def[i];
+		}
+		for(var i in hcap){
+			cap[i] = hcap[i];
+		}
+		
 		if(op.type == 'sub'){
 			if(!(op.id in subscriptions)){
 				subscriptions[op.id] = [];
@@ -89,23 +122,25 @@ function parseOps(res, ops){
 				history: msg.history
 			}
 		}else if(op.type == 'modify'){
-			if(!(op.id in msgs)){
-				msgs[op.id] = {
-					id: op.id,
-					version: 0,
-					history: []
+
+
+
+			if(cap.write){
+				msg.lastModified = +new Date;
+				msg.history.push(op);
+				msg.text = op.text;
+				msg.version++;
+				console.log('updated message to v',msg.version)
+				publish(op.id, op)
+				return {
+					type: op.type,
+					success: 'ftw'
 				}
-			}
-			var msg = msgs[op.id];
-			msg.lastModified = +new Date;
-			msg.history.push(op);
-			msg.text = op.text;
-			msg.version++;
-			console.log('updated message to v',msg.version)
-			publish(op.id, op)
-			return {
-				type: op.type,
-				success: 'ftw'
+			}else{
+				return {
+					type: op.type,
+					fail: 'bad permissions. can not write'
+				}
 			}
 		}
 	})
