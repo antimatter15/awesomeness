@@ -4,12 +4,31 @@ var crypto = require('crypto')
 var msgs = {}; //meh, doesnt persist
 var signatures = {};
 var subscriptions = {};
+var hosts = /^.*$/; //all hosts are to be enabled
+
+/*
+	{ //message acl schema
+		acl: {
+			default: {
+				
+			}
+			'host': {
+				
+			}
+		}
+	}
+*/
 
 function validateSignature(user, sig, data, callback, fail){
 	console.log(user)
 	var u = url.parse(user); //URL
 	
 	var host = u.protocol+'//'+u.host; //host name
+	
+	if(!hosts.test(host)){
+		return fail();
+	}
+	
 	if(host in signatures){
 		//verify signature
 		console.log('verifying signature')
