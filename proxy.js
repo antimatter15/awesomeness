@@ -34,25 +34,31 @@ function hostSig(host){
 
 var sigcache = {}
 
-function signRequest(url, data){
-	var u = url.parse(url);
+function signRequest(uri, data){
+	console.log('signing request')
+	var u = url.parse(uri);
 	var cl = http.createClient(u.port||80, u.hostname);
 	var host = u.protocol+'//'+u.host; //host name
 	var msig = crypto.createHmac('sha1', hostSig(host)).update(data).digest('hex');
 	sigcache[msig] = host;
+	console.log('signature',msig)
 	var req = cl.request('POST', u.pathname, {
 		sig: msig,
 		host: 'http://localhost:8125'
 	});
 	req.write(data);
 	req.end();
+	console.log('sending')
 	req.on('response', function(res){
+		console.log('getting response')
 		var all = '';
 		res.on('data', function(c){
 			all += c;
+			console.log('heres some data')
 		})
 		res.on('end', function(){
 			//yay done
+			console.log('doneh')
 		})
 	})
 }
@@ -65,12 +71,14 @@ http.createServer(function (req, res) {
 		console.log('get key thingy')
 		if(sigcache[req.url.substr(9)]){
 			console.log('sending key woot')
-			req.write(hostSig(sigcache[req.url.substr(9)]))
+			res.writeHead(200,{})
+			res.write(hostSig(sigcache[req.url.substr(9)]))
 			delete sigcache[req.url.substr(9)];
 		}
-		req.end();
+		res.end();
 		//get key
 	}else if(req.url == '/test'){
+		res.writeHead(200,{})
 		signRequest('http://localhost:8124/', JSON.stringify([
 			{
 				type: 'modify',
@@ -78,6 +86,7 @@ http.createServer(function (req, res) {
 				text: 'cheesecake'
 			}
 		]))
+		res.end();
 	}else{
 		var chunks = '';
 		//TODO: live JSON parser

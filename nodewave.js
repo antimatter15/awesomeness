@@ -6,31 +6,39 @@ var signatures = {};
 var subscriptions = {};
 
 function validateSignature(user, sig, data, callback, fail){
+	console.log(user)
 	var u = url.parse(user); //URL
+	
 	var host = u.protocol+'//'+u.host; //host name
 	if(host in signatures){
 		//verify signature
+		console.log('verifying signature')
 		var valid = crypto.createHmac('sha1', signatures[host])
 			.update(data)
 			.digest('hex') == sig;
 		
 		if(valid){
 			callback();
+			console.log('signature win')
 		}else{
 			fail();
+			console.log('signature fail')
 		}
 	}else{
+		console.log('querying signature')
 		var cl = http.createClient(u.port||80, u.hostname);
-		var req = cl.request('GET','/get_key/'+signature);
+		var req = cl.request('GET','/get_key/'+sig);
 		req.end();
 		req.on('response', function(res){
+			console.log('getting response')
 			var all = '';
 			res.on('data', function(c){
 				all += c;
 			})
 			res.on('end', function(){
 				signatures[host] = all;
-				validateSignature.apply(this, arguments);
+				console.log('trying to verify again')
+				validateSignature(user, sig, data, callback, fail);
 			})
 		})
 	}
@@ -38,7 +46,8 @@ function validateSignature(user, sig, data, callback, fail){
 
 function parseOps(res, ops){
 	res.writeHead(200, {'Content-Type': 'text/plain'});
-	res.write(JSON.stringify(ops.map(function(op){
+	var nops = ops.map(function(op){
+		console.log('parsing op type',op.type)
 		//todo: live json encoding
 		if(op.type == 'sub'){
 			if(!(op.id in subscriptions)){
@@ -71,17 +80,24 @@ function parseOps(res, ops){
 			msg.history.push(op);
 			msg.text = op.text;
 			msg.version++;
-			
+			console.log('updated message to v',msg.version)
 			publish(op.id, op)
-			
+			return {
+				success: 'ftw'
+			}
 		}
-	})))
+	})
+	var snops = JSON.stringify(nops);
+	console.log('response:',snops)
+	res.write(snops);
   res.end();
 }
 
 function publish(id, op){
 	var i = subscriptions[id];
+	if(!i) return; //no one is subscribing.
 	var msg = msgs[id];
+	console.log('publishing')
 	for(var l = i.length; l--;){
 		var u = url.parse(i[l]);
 		var cl = http.createClient(u.port||80, u.hostname);
@@ -110,9 +126,11 @@ http.createServer(function (req, res) {
 		chunks += chunk;
 	})
 	req.on('end', function(){
+		console.log(JSON.stringify(req.headers))
 		validateSignature(req.headers.host, req.headers.sig, chunks, function(){
 			var json = JSON.parse(chunks);
-			parseOps(res, json.ops);	
+			console.log('DATA',chunks)
+			parseOps(res, json);	
 		},function(){
 			res.end();
 		})
