@@ -48,3 +48,54 @@ Goals:
 		Handle client/server requests
 		recursively render subthreads
 		handle editing
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+Hopefully Unambiguous Protocol/Implementation Specification
+
+Storage Server
+	API:
+		host/message
+			POST:
+				submit deltas
+			GET:
+				receive current state
+		
+		host/message/version1-version2
+			GET:
+				get an array of versions
+				
+
+Authentication
+	Proxy Server sends Request to host, including signature.
+	Storage server checks signature by requesting key via lookup (of signature?)
+		* Also sends its own key
+	Proxy server returns the verification key (shared)
+	
+	Push Notifications:
+		Storage server signs outgoing requests
+		Proxy server validates them.
+
+
+Message Specification:
+	{
+		id: URL
+		time: last modified time
+		
+	}
+
+
+
