@@ -45,6 +45,16 @@ function signRequest(url, data){
 		host: 'http://localhost:8125'
 	});
 	req.write(data);
+	req.end();
+	req.on('response', function(res){
+		var all = '';
+		res.on('data', function(c){
+			all += c;
+		})
+		res.on('end', function(){
+			//yay done
+		})
+	})
 }
 
 
@@ -52,12 +62,22 @@ http.createServer(function (req, res) {
 	if(req.url == '/push'){
 		//update ping
 	}else if(req.url.substr(0,9) == '/get_key/'){
+		console.log('get key thingy')
 		if(sigcache[req.url.substr(9)]){
+			console.log('sending key woot')
 			req.write(hostSig(sigcache[req.url.substr(9)]))
 			delete sigcache[req.url.substr(9)];
 		}
 		req.end();
 		//get key
+	}else if(req.url == '/test'){
+		signRequest('http://localhost:8124/', JSON.stringify([
+			{
+				type: 'modify',
+				id: Math.random().toString(36).substr(2,5),
+				text: 'cheesecake'
+			}
+		]))
 	}else{
 		var chunks = '';
 		//TODO: live JSON parser
@@ -67,6 +87,11 @@ http.createServer(function (req, res) {
 		req.on('end', function(){
 			parseOps(res, JSON.parse(chunks));
 		})
+		signRequest('http://localhost:8124/', JSON.stringify([
+			{
+				
+			}
+			]))
 	}
 }).listen(8125, "127.0.0.1");
 console.log('Server running at http://127.0.0.1:8125/');

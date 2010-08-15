@@ -73,6 +73,7 @@ function parseOps(res, ops){
 			msg.version++;
 			
 			publish(op.id, op)
+			
 		}
 	})))
   res.end();
