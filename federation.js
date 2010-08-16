@@ -236,6 +236,7 @@ http.createServer(function (req, res) {
 			}else if(req.url == '/push'){
 				checkSignature(req.headers.host, req.headers.sig, chunks, function(){
 					res.writeHead(200,{})
+					console.log('applying delta for ',json.id)
 					var json = JSON.parse(chunks);
 					applyDelta(req.headers.host + '/' + json.id, req.headers.host, json)
 					res.end();

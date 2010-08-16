@@ -259,13 +259,14 @@ http.createServer(function (req, res) {
 				checkSignature(req.headers.host, req.headers.sig, chunks, function(){
 					var mid = req.url.substr(1);
 					var delta = JSON.parse(chunks);
-					var changed = applyDelta(mid, req.headers.host, delta)
+					var host = req.headers.host;
+					var changed = applyDelta(mid, host, delta)
 					
 
 					var msg = msgs[mid];
-					var can = getACL(req.headers.host, msg);
+					var can = getACL(host, msg);
 					
-					if(can.subscribe && delta.subscribe && msg.subscribers.indexOf(host) == -1)
+					if(delta.subscribe && msg.subscribers.indexOf(host) == -1)
 						msg.subscribers.push(host);
 					
 
@@ -277,7 +278,7 @@ http.createServer(function (req, res) {
 					var output = {};
 					
 					if(delta.load)
-						output = loadMessage(mid, req.headers.host);
+						output = loadMessage(mid, host);
 					
 					if(delta.history){
 						output.history = msg.history.slice(delta.history[0], delta.history[1])
