@@ -246,10 +246,10 @@ http.createServer(function (req, res) {
 					console.log('push kame frum',json.id)
 					var cl = comet_listeners[json.id]
 					if(cl){
-						for(var i = cl.length;i--;){
-							cl[i].write(chunks)
-						}
+						for(var i = cl.length;i--;)
+							cl[i].end(chunks); //get rid of it!
 					}
+					comet_listeners[json.id] = [];
 				},function(){
 					console.log('failed signature');
 					res.writeHead(503, {});
@@ -280,7 +280,6 @@ http.createServer(function (req, res) {
 			console.log('new listener for req from ',url)
 			if(!comet_listeners[url]) comet_listeners[url] = [];
 			res.writeHead(200,{})
-			res.write('masdklfjadslkfjalsdkjfsdlkfjsdlkafjsadlkfjdsafkj')
 			comet_listeners[url].push(res);
 		}
 	}
