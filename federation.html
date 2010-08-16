@@ -1,0 +1,187 @@
+<script>
+var msgs = {};
+function applyDelta(id, delta){
+	if(!(id in msgs)){
+			loadMessage(id)
+	}
+	
+	console.log('got delta',delta)
+	
+	var msg = msgs[id];
+	var changed = false;
+	
+	if(delta.acl){
+		for(var i in delta.acl){
+			msg.acl[i] = msg.acl[i] || {};
+			changed = true;
+			for(var k in delta.acl[i])
+				msg.acl[i][k] = delta.acl[i][k];
+		}
+	}
+	
+	if(delta.elements){
+		for(var i in delta.elements){
+			msg.elements[i] = msg.elements[i] || {};
+			changed = true;
+			for(var k in delta.elements[i])
+				msg.elements[i][k] = delta.elements[i][k];
+		}
+	}
+	
+	if(delta.add_children){
+		//TODO: support Reordering
+		msg.children = msg.children.concat(delta.add_children);
+		changed = true;
+	}
+	
+	//A *very* basic totally not working real OT that will have
+	//TONS OF COLLISIONS. DO NOT USE THIS IN ANYTHING OTHER THAN
+	//A PROTOTYPE!
+	if(delta.ot){
+		for(var i = 0, l = delta.ot.length; i < l; i++){
+			var r = delta.ot[i]; //[14, 18, "gray"]
+			msg.text = msg.text.substr(0,r[0]) + r[2] + msg.text.substr(r[1]);
+			changed = true;
+		}
+	}
+	
+	if(changed == true){
+		msg.time = +new Date;
+		msg.v++; //increment version
+	}
+	//console.log(msg.text)
+	
+	var ed = document.getElementById(id).editor;
+	if(!ed.contentEditable) ed.innerHTML = msg.text;
+	return changed
+}
+
+
+function update(id,diff){
+	var xhr = new XMLHttpRequest();
+	xhr.open('POST','/',false);
+	xhr.send(JSON.stringify({
+		id: id,
+		ot: [diff]
+	}));
+	console.log(xhr.responseText)
+}
+
+function listen(url, callback){
+	var xhr = new XMLHttpRequest();
+	xhr.open('get','/comet/'+encodeURIComponent(url), true);
+	xhr.onreadystatechange = function(){
+		if(xhr.readyState == 4){
+			var json = JSON.parse(xhr.responseText);
+			console.log(json)
+			applyDelta(json.id, json)
+			listen(url, callback)
+		}
+	}
+	xhr.send(null)
+}
+
+function diff(a, b){
+  var al = a.length, bl = b.length, s = -1, e = -1;
+  while(s++ < al && a[s] == b[s]);
+  while(e++ < al && a[al-e] == b[bl-e]);
+  return [s,al-e+1,b.substring(s,bl-e+1)]
+}
+
+
+function loadMessage(id){
+	//todo: make async
+	var xhr = new XMLHttpRequest();
+	xhr.open('POST','/',false);
+	xhr.send(JSON.stringify({
+		id: id,
+		load: true
+	}));
+	var j = JSON.parse(xhr.responseText);
+	j.history = [];
+	msgs[id] = j;
+	listen(id)
+}
+
+function renderMsg(id){
+	var d = document.createElement('div');
+	var t = document.createElement('div');
+	t.innerHTML = msgs[id].text;
+	d.innerHTML = 'Message '+id+' Version '+msgs[id].v
+	t.className = 'text'
+	
+	d.id = id;
+	d.editor = t;
+	
+	var lasttext = '';
+	
+	setInterval(function(){
+		if(!t.parentNode || t.contentEditable == false) return false;
+		if(msgs[id].text == t.innerHTML) return;
+		var d = diff(msgs[id].text, t.innerHTML) //TODO: something smarter
+		if(msgs[id].text != lasttext){
+			console.log('odd sync mismatch', lasttext, msgs[id].tex)
+		}
+		
+		lasttext = t.innerHTML;
+		
+		update(id, d)
+	},1000)
+	
+	var b = document.createElement('button');
+	b.onclick = function(){
+		t.contentEditable = t.contentEditable == 'false';
+	}
+	b.innerHTML = 'Toggle Edit Mode'
+	d.appendChild(b)
+	
+	
+	d.appendChild(t)
+	d.className = 'message'
+	return d
+}
+
+function render(id){
+  var show = function(parent, id){
+		if(!(id in msgs)) loadMessage(id);
+		var msg = msgs[id];
+		
+		var el = renderMsg(id);
+		if(msg.children.length > 0){
+			var th = document.createElement('div');
+			th.className = 'thread';
+			for(var i = 0; i < msg.children.length; i++){ //intended to be slow. FIX IT
+				show(th, msg.children[i])
+			}
+			el.appendChild(th);
+		}
+		parent.appendChild(el)
+	};
+	show(document.getElementById('main'), id)
+}
+
+
+
+
+</script>
+<style>
+	.text{
+		background-color: #f0f0f0;
+		min-height: 50px;
+	}
+	
+	.text[contentEditable=true]{
+		background-color: #e0e0ff;
+	}
+	
+	.thread {
+		padding-left: 30px;
+		border-left: 3px solid #007fff;
+	}
+	
+</style>
+<form onsubmit="render(this.root.value);return false">
+	<input type='text' name='root' value='http://localhost:8124/supertestparent' style="width:500px">
+</form>
+<div id="main">
+</div>
