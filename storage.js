@@ -1,11 +1,12 @@
 //Storage
 var url = require('url'),
+		fs = require('fs'),
 	  http = require('http');
 
 
-var hosturl = 'http://localhost:2304802394829034823904/'
-var msgs = {};
-var token_secret = 'aksdljf2oiadsfjklj2;'
+var hosturl = 'http://localhost:8124' //remember no trailing slash
+var msgs = {}; //partial IDs, excludes host
+var token_secret = 'aksdljffsdakfwekwljr'
 var globalacl = {
 	write: true, //without this anything else wouldnt work
 	write_acl: true,
@@ -27,7 +28,11 @@ function getSecret(host_url, token, callback){
 	var h = url.parse(host_url);
 	var host = h.protocol+'//'+h.host;
 	var cl = http.createClient(h.port || 80, h.hostname); //todo: default HTTPS
-	var req = cl.request('GET','/auth/'+token);
+	var req = cl.request('POST','/auth');
+	req.write(JSON.stringify({
+		token: token,
+		host: host
+	}))
 	req.on('response', function(res){
 		var data='';req.on('data', function(d){data+=d});
 		req.on('end', function(){
@@ -70,6 +75,8 @@ function signedRequest(host_url, payload, callback){
 }
 
 function checkSignature(host, sig, data, callback, fail){
+	return callback(); 
+	
 	if(host in host_secrets){
 		var hmac = crypto.createHmac('sha1', host_secrets[host])
 			.update(data)
@@ -114,7 +121,6 @@ function applyDelta(id, host, delta){
 			acl: {
 				def: {}
 			},
-			id: id,
 			v: 0,
 			subscribers: [],
 			children: [],
@@ -126,14 +132,16 @@ function applyDelta(id, host, delta){
 	
 	if(delta.v != msg.v){
 		//version mismatch. FAIL
-		return false;
+		throw 'version mismatch'
 	}
 	
 	var can = getACL(host, msg);
 	
-	if(can.subscribe && delta.subscribe){
+	console.log('magicakal poniez')
+	
+	if(can.subscribe && delta.subscribe && msg.subscribers.indexOf(host) == -1)
 		msg.subscribers.push(host);
-	}
+	
 	
 	if(can.write){
 		msg.time = +new Date;
@@ -162,20 +170,84 @@ function applyDelta(id, host, delta){
 			}
 		}
 	}
+	return msg
+}
+
+
+function publishDelta(msg){
+	//send the delta to all the subscribers
+	for(var i = 0, l = msg.subscribers.length; i < l; i++){
+		var sub = msg.subscribers[i];
+		signedRequest(sub+'/push', JSON.stringify(delta), function(){
+			//do nothing
+		})
+	}
 }
 
 
 
 
+var msgs = {}; //Full IDs: host/message.
+function loadMessage(id){
+	if(!(id in msgs)){
+		//throw erruroh
+	}
+}
 
-
-console.log(msgs.test.text)
-
-applyDelta('test', 'nothing', {
-	ot: [
-		[5,6,' shiny ']
-	],
-	add_children: ['googlepoop']
-})
-
-console.log(msgs.test)
+http.createServer(function (req, res) {
+	if(req.method == 'POST'){
+		var chunks = '';
+		req.on('data', function(chunk){
+			chunks += chunk;
+		})
+		req.on('end', function(){
+			if(req.url == '/auth'){
+				var json = JSON.parse(chunks)
+				res.writeHead(200,{})
+				if(host_cache[json.host] == json.token){
+					var host_token = crypto.createHash('sha1')
+							.update(token_secret+'//'+json.host)
+							.digest('base64');
+					req.end(host_token)
+				}
+			}else{
+				checkSignature(req.headers.host, req.headers.sig, chunks, function(){
+					var msg = req.url.substr(1);
+					var json = JSON.parse(chunks);
+					publishDelta(applyDelta(msg, req.headers.host, json))
+					res.writeHead(200,{})
+					res.write('whoooot')
+					res.end();
+					
+				},function(){
+					console.log('signature failure')
+					res.writeHead(503, {})
+					res.end('signature failure')
+				})				
+			}
+			
+		})
+	}else if(req.method == 'GET'){
+		//webinterface is testing ONLY
+		if(req.url == '/' || req.url == ''){
+			fs.readFile('storage.html', function(err, data){
+				if(err) throw err;
+				res.writeHead(200,{'content-type': 'text/html'});
+				res.end(data)
+			})
+			return;
+		}
+		
+		var msg = req.url.substr(1);
+		if(msg in msgs){
+			res.writeHead(200,{});
+			res.write(JSON.stringify(msgs[msg]))
+		}else{
+			res.writeHead(404,{});
+			res.write('MSG NOT FOUND')
+		}
+		res.end()
+	}
+	
+}).listen(8124, "127.0.0.1");
+console.log('Server running at http://127.0.0.1:8124/');

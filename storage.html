@@ -1,0 +1,17 @@
+NOTE: YOU MUST DISABLE SIGNATURE AUTH FOR THIS TO WORK<br>
+CHECK UR JS CONSOLE FOR REZULTZ<br>
+<script>
+var xhr = new XMLHttpRequest();
+xhr.open('POST','/blahblahblah',false);
+xhr.send(JSON.stringify({
+	v: 0,
+	ot: [[0,0,'hello world i like poop']]
+}));
+console.log(xhr.responseText)
+
+
+var xhr = new XMLHttpRequest();
+xhr.open('get','/blahblahblah',false);
+xhr.send(null);
+console.log(xhr.responseText)
+</script>
