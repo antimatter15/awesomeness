@@ -1,10 +1,11 @@
 //Storage
 var url = require('url'),
 		fs = require('fs'),
+		crypto = require('crypto'),
 	  http = require('http');
 
 
-var hosturl = 'http://localhost:8124' //remember no trailing slash
+var my_url = 'http://localhost:8124' //remember no trailing slash
 var msgs = {}; //partial IDs, excludes host
 var token_secret = 'aksdljffsdakfwekwljr'
 var globalacl = {
@@ -25,23 +26,25 @@ var host_secrets = {};
 
 
 function getSecret(host_url, token, callback){
+	console.log('getting secret of ',host_url)
 	var h = url.parse(host_url);
 	var host = h.protocol+'//'+h.host;
 	var cl = http.createClient(h.port || 80, h.hostname); //todo: default HTTPS
 	var req = cl.request('POST','/auth');
 	req.write(JSON.stringify({
 		token: token,
-		host: host
+		host: my_url
 	}))
+	req.end();
 	req.on('response', function(res){
-		var data='';req.on('data', function(d){data+=d});
-		req.on('end', function(){
+		console.log('startin gresponse')
+		var data='';res.on('data', function(d){data+=d});
+		res.on('end', function(){
 			//store data as the signature used to check other things
 			host_secrets[host] = data;
 			callback()
 		})
 	})
-	req.end();
 }
 
 
@@ -57,11 +60,11 @@ function signedRequest(host_url, payload, callback){
 	var sig = crypto.createHmac('sha1', host_token)
 			.update(payload)
 			.digest('base64');
-	console.log('host', host_url, 'host token',host_token,'request signature',sig)
+	console.log('host', my_url, 'host token',host_token,'request signature',sig)
 	host_cache[host] = sig;
 	var req = cl.request('POST', h.pathname, {
 		sig: sig,
-		host: host_url //reference to self
+		host: my_url //reference to self
 	});
 	req.write(payload);
 	req.end();
@@ -75,7 +78,7 @@ function signedRequest(host_url, payload, callback){
 }
 
 function checkSignature(host, sig, data, callback, fail){
-	return callback(); 
+	//return callback();  //uncomment this line to disable crypto magic
 	
 	if(host in host_secrets){
 		var hmac = crypto.createHmac('sha1', host_secrets[host])
@@ -84,6 +87,7 @@ function checkSignature(host, sig, data, callback, fail){
 		(hmac == sig)?callback():fail();
 	}else{
 		getSecret(host, sig, function(){
+			console.log('got signature')
 			checkSignature(host, sig, data, callback, fail); //spare a .apply
 		})
 	}
@@ -237,6 +241,7 @@ http.createServer(function (req, res) {
 		})
 		req.on('end', function(){
 			if(req.url == '/auth'){
+				console.log('authenticating')
 				var json = JSON.parse(chunks)
 				res.writeHead(200,{})
 				if(host_cache[json.host] == json.token){
@@ -244,8 +249,13 @@ http.createServer(function (req, res) {
 							.update(token_secret+'//'+json.host)
 							.digest('base64');
 					req.end(host_token)
+				}else{
+					console.log(host_cache)
+					console.log('host token not found')
+					res.end('error')
 				}
 			}else{
+				console.log('checking sig')
 				checkSignature(req.headers.host, req.headers.sig, chunks, function(){
 					var mid = req.url.substr(1);
 					var delta = JSON.parse(chunks);
