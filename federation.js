@@ -66,7 +66,7 @@ function signedRequest(host_url, payload, callback){
 	req.write(payload);
 	req.end();
 	req.on('response', function(res){
-		var data='';req.on('data', function(d){data+=d})
+		var data='';res.on('data', function(d){data+=d})
 		res.on('end', function(){
 			callback(data)
 		})
@@ -250,6 +250,7 @@ http.createServer(function (req, res) {
 				res.writeHead(200,{})
 				signedRequest(json.id, JSON.stringify(json), function(stuff){
 					//do nothin?
+					//res.write('meow kitty')
 					res.end(stuff)
 				})
 			}
