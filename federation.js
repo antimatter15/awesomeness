@@ -211,6 +211,8 @@ function loadMessage(id, callback){
 	}
 }
 
+var comet_listeners = {};
+
 http.createServer(function (req, res) {
 	if(req.method == 'POST'){
 		var chunks = '';
@@ -236,10 +238,17 @@ http.createServer(function (req, res) {
 			}else if(req.url == '/push'){
 				checkSignature(req.headers.host, req.headers.sig, chunks, function(){
 					res.writeHead(200,{})
-					console.log('applying delta for ',json.id)
+
 					var json = JSON.parse(chunks);
+					console.log('applying delta for ',json.id)
 					applyDelta(req.headers.host + '/' + json.id, req.headers.host, json)
 					res.end();
+					var cl = comet_listeners[req.headers.host + '/' + json.id]
+					if(cl){
+						for(var i = cl.length;i--;){
+							cl[i].write(chunks)
+						}
+					}
 				},function(){
 					console.log('failed signature');
 					res.writeHead(503, {});
@@ -265,9 +274,15 @@ http.createServer(function (req, res) {
 				res.writeHead(200,{'content-type': 'text/html'});
 				res.end(data)
 			})
-			return;
+		}else if(req.url.substr(0,7) == '/comet/'){
+			var url = unescape(req.url.substr(7));
+			if(!comet_listeners[url]) comet_listeners[url] = [];
+			comet_listeners[url].push(res);
 		}
 	}
 	
 }).listen(8125, "127.0.0.1");
+
+
+
 console.log('Server running at http://127.0.0.1:8125/');
