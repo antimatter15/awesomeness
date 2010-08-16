@@ -241,9 +241,10 @@ http.createServer(function (req, res) {
 
 					var json = JSON.parse(chunks);
 					console.log('applying delta for ',json.id)
-					applyDelta(req.headers.host + '/' + json.id, req.headers.host, json)
+					applyDelta(json.id, req.headers.host, json)
 					res.end();
-					var cl = comet_listeners[req.headers.host + '/' + json.id]
+					console.log('push kame frum',json.id)
+					var cl = comet_listeners[json.id]
 					if(cl){
 						for(var i = cl.length;i--;){
 							cl[i].write(chunks)
@@ -276,7 +277,10 @@ http.createServer(function (req, res) {
 			})
 		}else if(req.url.substr(0,7) == '/comet/'){
 			var url = unescape(req.url.substr(7));
+			console.log('new listener for req from ',url)
 			if(!comet_listeners[url]) comet_listeners[url] = [];
+			res.writeHead(200,{})
+			res.write('masdklfjadslkfjalsdkjfsdlkfjsdlkafjsadlkfjdsafkj')
 			comet_listeners[url].push(res);
 		}
 	}
