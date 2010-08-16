@@ -58,7 +58,7 @@ function signedRequest(host_url, payload, callback){
 			.digest('base64');
 	console.log('host', host_url, 'host token',host_token,'request signature',sig)
 	host_cache[host] = sig;
-	var req = cl.request('POST', h.pathname, {
+	var req = cl.request(payload?'POST':'GET', h.pathname, {
 		sig: sig,
 		host: host_url //reference to self
 	});
@@ -169,8 +169,18 @@ function applyDelta(id, host, delta){
 }
 
 
-function loadMessage(id){
-	
+function loadMessage(id, callback){
+	if(id in msgs){
+		if(callback) callback(msgs[id]);
+	}else{
+		signedRequest(id, '', function(all){
+			var json = JSON.parse(all);
+			msgs[id] = json;
+			for(var i = msgs[id].children, l = i.length; l--;){
+				loadMessage(i[l]); //just cache it and subscribe
+			}
+		})
+	}
 }
 
 http.createServer(function (req, res) {
@@ -212,7 +222,8 @@ http.createServer(function (req, res) {
 			
 		})
 	}else if(req.method == 'GET'){
-		
+		console.log(req.url)
+		res.end('mooo');
 	}
 	
 }).listen(8125, "127.0.0.1");

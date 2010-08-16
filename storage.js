@@ -8,12 +8,12 @@ var hosturl = 'http://localhost:8124' //remember no trailing slash
 var msgs = {}; //partial IDs, excludes host
 var token_secret = 'aksdljffsdakfwekwljr'
 var globalacl = {
-	write: true, //without this anything else wouldnt work
 	write_acl: true,
+	write_elements: true,
 	add_children: true,
-	subscribe: true,
-	read: true,
-	change_text: true
+	read_acl: true,
+	read_text: true,
+	write_text: true
 };
 
 
@@ -118,9 +118,23 @@ function getACL(host, msg){
 function applyDelta(id, host, delta){
 	if(!(id in msgs)){
 		msgs[id] = {
+			history: [], //a list of all operations, 0 -> v
 			acl: {
 				def: {}
 			},
+			elements: {}, //elements are similar to annotations and elements in wave
+			//handling is similar to ACLs.
+			/*
+				{
+					'dfjlaskdjf': { //element ID
+						start: 0 //place in text where it begins
+						end: 0 //place in text where it ends (optional)
+						
+						url: //gadgets
+						state_blah: //gadget state
+					}
+				}
+			*/
 			v: 0,
 			subscribers: [],
 			children: [],
@@ -130,51 +144,59 @@ function applyDelta(id, host, delta){
 	
 	var msg = msgs[id];
 	
-	if(delta.v != msg.v){
-		//version mismatch. FAIL
-		throw 'version mismatch'
-	}
+	//if(delta.v != msg.v){
+	//	//version mismatch. FAIL
+	//	throw 'version mismatch'
+	//}
 	
 	var can = getACL(host, msg);
 	
-	console.log('magicakal poniez')
+	var changed = false;
 	
-	if(can.subscribe && delta.subscribe && msg.subscribers.indexOf(host) == -1)
-		msg.subscribers.push(host);
-	
-	
-	if(can.write){
-		msg.time = +new Date;
-		msg.v++; //increment version
-	
-		if(can.write_acl && delta.acl){
-			for(var i in delta.acl){
-				msg.acl[i] = msg.acl[i] || {};
-				for(var k in delta.acl[i])
-					msg.acl[i][k] = delta.acl[i][k];
-			}
-		}
-		
-		if(can.add_children && delta.add_children){
-			//TODO: support Reordering
-			msg.children = msg.children.concat(delta.add_children);
-		}
-		
-		//A *very* basic totally not working real OT that will have
-		//TONS OF COLLISIONS. DO NOT USE THIS IN ANYTHING OTHER THAN
-		//A PROTOTYPE!
-		if(can.change_text && delta.ot){
-			for(var i = 0, l = delta.ot.length; i < l; i++){
-				var r = delta.ot[i]; //[14, 18, "gray"]
-				msg.text = msg.text.substr(0,r[0]) + r[2] + msg.text.substr(r[1]);
-			}
+	if(can.write_acl && delta.acl){
+		for(var i in delta.acl){
+			msg.acl[i] = msg.acl[i] || {};
+			changed = true;
+			for(var k in delta.acl[i])
+				msg.acl[i][k] = delta.acl[i][k];
 		}
 	}
-	return msg
+	
+	if(can.write_elements && delta.elements){
+		for(var i in delta.elements){
+			msg.elements[i] = msg.elements[i] || {};
+			changed = true;
+			for(var k in delta.elements[i])
+				msg.elements[i][k] = delta.elements[i][k];
+		}
+	}
+	
+	if(can.add_children && delta.add_children){
+		//TODO: support Reordering
+		msg.children = msg.children.concat(delta.add_children);
+		changed = true;
+	}
+	
+	//A *very* basic totally not working real OT that will have
+	//TONS OF COLLISIONS. DO NOT USE THIS IN ANYTHING OTHER THAN
+	//A PROTOTYPE!
+	if(can.write_text && delta.ot){
+		for(var i = 0, l = delta.ot.length; i < l; i++){
+			var r = delta.ot[i]; //[14, 18, "gray"]
+			msg.text = msg.text.substr(0,r[0]) + r[2] + msg.text.substr(r[1]);
+			changed = true;
+		}
+	}
+	
+	if(changed == true){
+		msg.time = +new Date;
+		msg.v++; //increment version
+	}
+	return changed
 }
 
 
-function publishDelta(msg){
+function publishDelta(msg, delta){
 	//send the delta to all the subscribers
 	for(var i = 0, l = msg.subscribers.length; i < l; i++){
 		var sub = msg.subscribers[i];
@@ -188,10 +210,23 @@ function publishDelta(msg){
 
 
 var msgs = {}; //Full IDs: host/message.
-function loadMessage(id){
+function loadMessage(id, host){
 	if(!(id in msgs)){
 		//throw erruroh
 	}
+	var msg = msgs[id];
+	var can = getACL(host, msg);
+	var n = {
+		time: msg.time,
+		v: msg.v,
+		children: msg.children
+		
+	};
+	
+	if(can.read_acl) n.acl = msg.acl;
+	if(can.read_text) n.text = msg.text;
+	
+	return n;
 }
 
 http.createServer(function (req, res) {
@@ -212,11 +247,33 @@ http.createServer(function (req, res) {
 				}
 			}else{
 				checkSignature(req.headers.host, req.headers.sig, chunks, function(){
-					var msg = req.url.substr(1);
-					var json = JSON.parse(chunks);
-					publishDelta(applyDelta(msg, req.headers.host, json))
+					var mid = req.url.substr(1);
+					var delta = JSON.parse(chunks);
+					var changed = applyDelta(mid, req.headers.host, delta)
+					
+
+					var msg = msgs[mid];
+					var can = getACL(req.headers.host, msg);
+					
+					if(can.subscribe && delta.subscribe && msg.subscribers.indexOf(host) == -1)
+						msg.subscribers.push(host);
+					
+
+					if(changed){
+						publishDelta(msgs[mid], delta); //publish delta
+					}
+					
 					res.writeHead(200,{})
-					res.write('whoooot')
+					var output = {};
+					
+					if(delta.load)
+						output = loadMessage(mid, req.headers.host);
+					
+					if(delta.history){
+						output.history = msg.history.slice(delta.history[0], delta.history[1])
+					}
+					
+					res.write(JSON.stringify(output))
 					res.end();
 					
 				},function(){
@@ -237,16 +294,6 @@ http.createServer(function (req, res) {
 			})
 			return;
 		}
-		
-		var msg = req.url.substr(1);
-		if(msg in msgs){
-			res.writeHead(200,{});
-			res.write(JSON.stringify(msgs[msg]))
-		}else{
-			res.writeHead(404,{});
-			res.write('MSG NOT FOUND')
-		}
-		res.end()
 	}
 	
 }).listen(8124, "127.0.0.1");

@@ -11,7 +11,9 @@ console.log(xhr.responseText)
 
 
 var xhr = new XMLHttpRequest();
-xhr.open('get','/blahblahblah',false);
-xhr.send(null);
+xhr.open('POST','/blahblahblah',false);
+xhr.send(JSON.stringify({
+	load: true
+}));
 console.log(xhr.responseText)
 </script>

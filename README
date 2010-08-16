@@ -68,17 +68,17 @@ Hopefully Unambiguous Protocol/Implementation Specification
 
 Storage Server
 	API:
+		host/auth
+			GET
+	
 		host/message
 			POST:
-				submit deltas
-			GET:
-				receive current state
-		
-		host/message/version1-version2
-			GET:
-				get an array of versions
+				submit things
+				load = return the contents of the message
+				history[start,length] = return history of message
 				
-
+				
+				
 Authentication
 	Proxy Server sends Request to host, including signature.
 	Storage server checks signature by requesting key via lookup (of signature?)
