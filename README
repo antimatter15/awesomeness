@@ -69,20 +69,63 @@ Hopefully Unambiguous Protocol/Implementation Specification
 Storage Server
 	API:
 		host/auth
+			GET:
+				Headers:
+					{
+						token: //a signed request
+						host: //hostID of the requesting server
+					}
+				Responses:
+					YAY
+					FAIL
+		
+		(Signed) host/message
 			POST (JSON):
 				{
-					token: //a signed request
-					host: //hostID of the requesting server
+					v: //version. must match current
+					user: //the user that is doing the operation
+					acl: {
+						def: {
+							//Default ACL rules
+						}
+						example.org: {
+							//ACL rules for example.org
+							
+							//Not sure: User ACLs (not handled at all by storage server)
+							//Probably _should_ be stored in the storage server.
+							
+							//Nested? (would require additional protocol/implementation changes)
+							bob: {
+								add_children: false
+							}
+							
+							//Linear?
+							bob_add_children: false
+						}
+					}
+					
+					//TODO: replace with system that allows for rearranging + deleting
+					add_children: [
+						'http://example.org/adfjweK34ELWFjwe023'
+					]
+					
+					ot: [ //SUPER DUPER SIMPLE AND CRAPPY OT SYSTEM
+								//DO NOT USE THIS IN A FINAL SYSTEM
+						[intSTART, intEND, intREPLACE],
+						[intSTART, intEND, intREPLACE]
+					]
 				}
 		
-		host/message?history=true
-			POST:
-				submit things
+		(Signed) host/message
 			GET:
 				Download latest version of message
 		
+		(Signed) host/message?history=true
+			GET:
+				Include History
+		
 		Playback?
-			host/message/version-version2
+			(Signed) host/message/version-version2
 		
 				
 Authentication
