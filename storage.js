@@ -181,9 +181,15 @@ http.createServer(function (req, res) {
 			var u = url.parse(req.url, true);
 			var mid = u.pathname.substr(1);
 			var opt = u.query;
+			var host = req.headers.host;
 			checkSecret(req, function(){
+
 				if(mid in msgs){
 					res.writeHead(200)
+					
+					if(opt.subscribe && msgs[mid].subscribers.indexOf(host) == -1)
+						msgs[mid].subscribers.push(host);
+					
 					res.end(JSON.stringify(getMessage(mid, req.headers.host, opt)))
 				}else{
 					res.writeHead(404)

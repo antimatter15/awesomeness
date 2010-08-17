@@ -4,8 +4,8 @@ var url = require('url'),
 		sign = require('./communication'),
 	  http = require('http');
 
-sign.set_url('http://localhost:8124');
-sign.set_secret('ksdjf2wmweiofwtjh5stjeow8ru');
+sign.set_url('http://localhost:8125');
+sign.set_secret('laf324ojip3jgf4ilurkwoe82');
 
 var msgs = {}; //partial IDs, excludes host
 
@@ -133,18 +133,18 @@ function getMessage(id, host, opt){
 }
 
 
-function loadMessage(id, callback){
+function loadMessage(id, callback, opt){
+	
 	if(id in msgs){
-		if(callback) callback(getMessage(id, HOST);
+		if(callback) callback(getMessage(id, sign.my_url);
 	}else{
-		signedRequest(id, JSON.stringify({
-			load: true
-		}), function(all){
+		sign.GET(id+"?history=true&subscribe=true",function(all){
 			var json = JSON.parse(all);
 			msgs[id] = json;
 			for(var i = msgs[id].children, l = i.length; l--;){
 				loadMessage(i[l]); //just cache it and subscribe
 			}
+			loadMessage(id, callback, opt)
 		})
 	}
 }
@@ -160,9 +160,8 @@ http.createServer(function (req, res) {
 		})
 		req.on('end', function(){
 			if(req.url == '/push'){
-				checkSignature(req.headers.host, req.headers.sig, chunks, function(){
-					res.writeHead(200,{})
-
+				checkSecret(req, function(){
+					res.writeHead(200)
 					var json = JSON.parse(chunks);
 					console.log('applying delta for ',json.id)
 					applyDelta(json.id, req.headers.host, json)
@@ -178,21 +177,18 @@ http.createServer(function (req, res) {
 					comet_listeners[json.id] = [];
 				},function(){
 					console.log('failed signature');
-					res.writeHead(503, {});
+					res.writeHead(503);
 					res.end('FAILED SIGNATURE')
 				})
 			}else{
 				var json = JSON.parse(chunks);
 				json.subscribe = true;
+				//hmmm. subscriptions. hmm.
 				res.writeHead(200,{})
-				
-				signedRequest(json.id, JSON.stringify(json), function(stuff){
+				sign.POST(json.id, JSON.stringify(json), function(stuff){
 					res.end(stuff)
 				})
-				
-				
 			}
-			
 		})
 	}else if(req.method == 'GET'){
 		//webinterface is testing ONLY
@@ -206,18 +202,23 @@ http.createServer(function (req, res) {
 			var poop = url.parse(req.url, true);
 			var v = parseInt(poop.query.v,10);			
 			var p = poop.query.url;
-			res.writeHead(200,{})
+			res.writeHead(200)
 			if(msgs[p] && v < msgs[p].v){
 				var j = JSON.parse(JSON.stringify(msgs[p].history[v++]));
 				j.v = v;
 				res.end(JSON.stringify(j));
 				return;
 			}
-		
 			console.log('new listener for req from ',url)
 			if(!comet_listeners[p]) comet_listeners[p] = [];
-			
 			comet_listeners[p].push(res);
+		}else if(req.url == '/loadmsg'){
+			var u = url.parse(req.url, true);
+			var opt = u.query;
+			loadMessage(opt.url, function(data){
+				res.writeHead(200)
+				res.end(JSON.stringify(data))
+			})
 		}
 	}
 	

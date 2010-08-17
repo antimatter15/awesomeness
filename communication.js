@@ -9,10 +9,11 @@ var url = require('url'),
 var host_secrets = {};
 var token_secret = '';
 var my_url = '' //remember no trailing slash
-
+exports.my_url = '';
 
 exports.set_url = function set_url(url){
-	my_url = url;
+	exports.my_url = my_url = url;
+	
 }
 
 exports.set_secret = function set_secret(secret){

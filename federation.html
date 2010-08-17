@@ -97,13 +97,10 @@ function diff(a, b){
 function loadMessage(id){
 	//todo: make async
 	var xhr = new XMLHttpRequest();
-	xhr.open('POST','/',false);
-	xhr.send(JSON.stringify({
-		id: id,
-		load: true
-	}));
+	xhr.open('GET','/loadmsg?url='+encodeURIComponent(id), false);
+	xhr.send(null);
 	var j = JSON.parse(xhr.responseText);
-	j.history = [];
+	//j.history = [];
 	msgs[id] = j;
 	listen(id);
 }
