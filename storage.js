@@ -12,8 +12,6 @@ var globalacl = {
 	write_acl: true,
 	write_elements: true,
 	add_children: true,
-	read_acl: true,
-	read_text: true,
 	write_text: true
 };
 
@@ -25,75 +23,58 @@ var globalacl = {
 var host_secrets = {};
 
 
-function getSecret(host_url, token, callback){
-	console.log('getting secret of ',host_url)
-	var h = url.parse(host_url);
-	var host = h.protocol+'//'+h.host;
-	var cl = http.createClient(h.port || 80, h.hostname); //todo: default HTTPS
-	var req = cl.request('POST','/auth');
-	req.write(JSON.stringify({
-		token: token,
-		host: my_url
-	}))
-	req.end();
-	req.on('response', function(res){
-		console.log('startin gresponse')
-		var data='';res.on('data', function(d){data+=d});
-		res.on('end', function(){
-			//store data as the signature used to check other things
-			host_secrets[host] = data;
-			callback()
-		})
-	})
-}
-
-
-var host_cache = {}; //todo: fix potential issue with batch requests removing recent sig from cache. race conditions.
-
-function signedRequest(host_url, payload, callback){
-	var h = url.parse(host_url);
-	var host = h.protocol+'//'+h.host;
-	var cl = http.createClient(h.port || 80, h.hostname);
-	var host_token = crypto.createHash('sha1')
-			.update(token_secret+'//'+host)
-			.digest('base64');
-	var sig = crypto.createHmac('sha1', host_token)
-			.update(payload)
-			.digest('base64');
-	console.log('host', my_url, 'host token',host_token,'request signature',sig)
-	host_cache[host] = sig;
-	var req = cl.request('POST', h.pathname, {
-		sig: sig,
-		host: my_url //reference to self
-	});
-	req.write(payload);
-	req.end();
-	req.on('response', function(res){
-		var data='';req.on('data', function(d){data+=d})
-		res.on('end', function(){
-			callback(data)
-		})
-	})
-	
-}
-
-function checkSignature(host, sig, data, callback, fail){
-	//return callback();  //uncomment this line to disable crypto magic
-	
+function checkSecret(req, win, fail){
+	var host = req.headers.host, secret = req.headers.secret;
 	if(host in host_secrets){
-		var hmac = crypto.createHmac('sha1', host_secrets[host])
-			.update(data)
-			.digest('base64');
-		(hmac == sig)?callback():fail();
+  	;(secret == host_secrets[host])?win():fail();
 	}else{
-		getSecret(host, sig, function(){
-			console.log('got signature')
-			checkSignature(host, sig, data, callback, fail); //spare a .apply
+		doRequest(host+'/auth', {
+			secret: secret,
+			host: my_url
+		}, null, function(data){
+			if(data == 'YAY'){
+				host_secrets[host] = secret;
+				win()
+			}else fail();
 		})
 	}
 }
+//assumes that TLS is being used to secure the means 
+//of transfer. so the verification is quite extremely
+//weak.
+function signHeader(host_url, headers){
+	var r = (headers||{});
+	var h = url.parse(host_url);
+	var host = h.protocol+'//'+h.host;
+	r.secret = crypto.createHash('sha1')
+			.update(token_secret+'//'+host)
+			.digest('base64');
+	r.host = my_url
+	return r
+}
+
+function doRequest(host_url, head, payload, callback){
+	var h = url.parse(host_url);
+	var cl = http.createClient(h.port||80, h.hostname); 
+	//TODO: change default to TLS port
+	var req = cl.request(payload?'POST':'GET', h.pathname, head || {});
+	payload && req.write(payload);
+	req.end();
+	req.on('response', function(res){
+		var data = '';
+		res.on('data', function(p){data += p});
+		res.on('end', function(){callback(data, res)})
+	})
+}
 
 
+function signedPOST(host_url, payload, callback){
+	doRequest(host_url, signHeader(host_url), payload, callback)
+}
+
+function signedGET(host_url, callback){
+	doRequest(host_url, signHeader(host_url), null, callback)	
+}
 
 //crappy diff algorithm which handles simple replace cases
 //returns range of change:        [  ] -> []
@@ -204,7 +185,7 @@ function publishDelta(msg, delta){
 	//send the delta to all the subscribers
 	for(var i = 0, l = msg.subscribers.length; i < l; i++){
 		var sub = msg.subscribers[i];
-		signedRequest(sub+'/push', JSON.stringify(delta), function(){
+		signedPOST(sub+'/push', JSON.stringify(delta), function(){
 			//do nothing
 		})
 	}
@@ -212,7 +193,8 @@ function publishDelta(msg, delta){
 
 
 var msgs = {}; //Full IDs: host/message.
-function loadMessage(id, host){
+function loadMessage(id, host, opt){
+	opt = opt || {};
 	if(!(id in msgs)){
 		//throw erruroh
 		throw "Message Not Found"
@@ -223,11 +205,14 @@ function loadMessage(id, host){
 		time: msg.time,
 		v: msg.v,
 		children: msg.children
-		
 	};
 	
-	if(can.read_acl) n.acl = msg.acl;
-	if(can.read_text) n.text = msg.text;
+	n.acl = msg.acl;
+	n.text = msg.text;
+	
+	if(opt.history)
+		n.history = msg.history; //TODO: Read ACLs
+	
 	
 	return n;
 }
@@ -239,53 +224,33 @@ http.createServer(function (req, res) {
 			chunks += chunk;
 		})
 		req.on('end', function(){
-			if(req.url == '/auth'){
-				console.log('authenticating')
-				var json = JSON.parse(chunks)
-				res.writeHead(200,{})
-				if(host_cache[json.host] == json.token){
-					var host_token = crypto.createHash('sha1')
-							.update(token_secret+'//'+json.host)
-							.digest('base64');
-					req.end(host_token)
-				}else{
-					console.log(host_cache)
-					console.log('host token not found')
-					res.end('error')
+			console.log('checking sig')
+			checkSecret(req, function(){
+				var mid = req.url.substr(1);
+				var delta = JSON.parse(chunks);
+				var host = req.headers.host;
+				var changed = applyDelta(mid, host, delta)
+				var msg = msgs[mid];
+				var can = getACL(host, msg);
+				
+				if(delta.subscribe && msg.subscribers.indexOf(host) == -1)
+					msg.subscribers.push(host);
+				
+				if(changed){
+					publishDelta(msgs[mid], delta); //publish delta
 				}
-			}else{
-				console.log('checking sig')
-				checkSignature(req.headers.host, req.headers.sig, chunks, function(){
-					var mid = req.url.substr(1);
-					var delta = JSON.parse(chunks);
-					var host = req.headers.host;
-					var changed = applyDelta(mid, host, delta)
-					
-
-					var msg = msgs[mid];
-					var can = getACL(host, msg);
-					
-					if(delta.subscribe && msg.subscribers.indexOf(host) == -1)
-						msg.subscribers.push(host);
-					
-
-					if(changed){
-						publishDelta(msgs[mid], delta); //publish delta
-					}
-					
-					res.writeHead(200,{})
-					var output = {}; //todo: try-catch errors and put in output
-					
-					res.write(JSON.stringify(output))
-					res.end();
-					
-				},function(){
-					console.log('signature failure')
-					res.writeHead(503, {})
-					res.end('signature failure')
-				})				
-			}
-			
+				
+				res.writeHead(200,{})
+				var output = {}; //todo: try-catch errors and put in output
+				
+				res.write(JSON.stringify(output))
+				res.end();
+				
+			},function(){
+				console.log('signature failure')
+				res.writeHead(503, {})
+				res.end('signature failure')
+			})
 		})
 	}else if(req.method == 'GET'){
 		//webinterface is testing ONLY
@@ -295,14 +260,34 @@ http.createServer(function (req, res) {
 				res.writeHead(200,{'content-type': 'text/html'});
 				res.end(data)
 			})
-			return;
+		}else if(req.url == '/auth'){
+			var host_token = crypto.createHash('sha1')
+					.update(token_secret+'//'+req.headers.host)
+					.digest('base64');
+			if(req.headers.secret == host_token){
+				res.writeHead(200);
+				res.end('YAY')
+			}else{
+				res.writeHead(404); //do anohter server error
+				res.end('FAIL')
+			}
 		}else{
 			var u = url.parse(req.url, true);
 			var mid = u.pathname.substr(1);
 			var opt = u.query;
-			
-			var msg = loadMessage(mid, )
-			
+			checkSecret(req, function(){
+				if(mid in msgs){
+					res.writeHead(200)
+					res.end(JSON.stringify(loadMessage(mid, req.headers.host, opt)))
+				}else{
+					res.writeHead(404)
+					//not found
+					res.end('{fail: "Message not found"}')
+				}
+			}, function(){
+				res.writeHead(503); //change error code. im offline and cant look it up.
+				res.end('Invalid Signature')				
+			})
 		}
 	}
 	
