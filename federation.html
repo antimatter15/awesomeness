@@ -104,7 +104,13 @@ function diff(a, b){
 	console.log(i,j)
 	
   return [i,al-j +1,b.substring(i,bl-j+1)]
-}*/
+}
+
+function undiff(text, r){
+	return text.substr(0,r[0]) + r[2] + text.substr(r[1]);
+}
+
+*/
 
 
 function diff(a, b){
@@ -114,9 +120,6 @@ function diff(a, b){
   return [i,al-j + 1,b.substring(i,bl-j+1)]
 }
 
-function undiff(text, r){
-	return text.substr(0,r[0]) + r[2] + text.substr(r[1]);
-}
 
 function loadMessage(id){
 	//todo: make async
