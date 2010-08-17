@@ -1,108 +1,23 @@
 //Storage
 var url = require('url'),
 		fs = require('fs'),
-		crypto = require('crypto'),
+		sign = require('./communication'),
 	  http = require('http');
 
+sign.set_url('http://localhost:8124');
+sign.set_secret('ksdjf2wmweiofwtjh5stjeow8ru');
 
-var my_url = 'http://localhost:8125' //remember no trailing slash
 var msgs = {}; //partial IDs, excludes host
-var token_secret = 'ekwedljfwwesfsdakfwewwsfwljr'
+
 var globalacl = {
 	write_acl: true,
 	write_elements: true,
 	add_children: true,
-	read_acl: true,
-	read_text: true,
 	write_text: true
 };
 
 
-/*
-	Through any signed message, there is a signature
-	the other party checks that the token is valid
-*/
-var host_secrets = {};
-
-
-function getSecret(host_url, token, callback){
-	console.log('getting secret of ',host_url)
-	var h = url.parse(host_url);
-	var host = h.protocol+'//'+h.host;
-	var cl = http.createClient(h.port || 80, h.hostname); //todo: default HTTPS
-	var req = cl.request('POST','/auth');
-	req.write(JSON.stringify({
-		token: token,
-		host: host
-	}))
-	req.on('response', function(res){
-		var data='';res.on('data', function(d){data+=d});
-		res.on('end', function(){
-			//store data as the signature used to check other things
-			host_secrets[host] = data;
-			callback()
-		})
-	})
-	req.end();
-}
-var host_cache = {}; //todo: fix potential issue with batch requests removing recent sig from cache. race conditions.
-
-function signedRequest(host_url, payload, callback){
-	var h = url.parse(host_url);
-	var host = h.protocol+'//'+h.host;
-	var cl = http.createClient(h.port || 80, h.hostname);
-	var host_token = crypto.createHash('sha1')
-			.update(token_secret+'//'+host)
-			.digest('base64');
-	var sig = crypto.createHmac('sha1', host_token)
-			.update(payload)
-			.digest('base64');
-	console.log('host', my_url, 'host token',host_token,'request signature',sig)
-	host_cache[host] = sig;
-	var req = cl.request('POST', h.pathname, {
-		sig: sig,
-		host: my_url //reference to self
-	});
-	req.write(payload);
-	req.end();
-	req.on('response', function(res){
-		var data='';res.on('data', function(d){data+=d})
-		res.on('end', function(){
-			callback(data)
-		})
-	})
-	
-}
-
-function checkSignature(host, sig, data, callback, fail){
-	return callback(); 
-	
-	if(host in host_secrets){
-		var hmac = crypto.createHmac('sha1', host_secrets[host])
-			.update(data)
-			.digest('base64');
-		(hmac == sig)?callback():fail();
-	}else{
-		getSecret(host, sig, function(){
-			checkSignature(host, sig, data, callback, fail); //spare a .apply
-		})
-	}
-}
-
-
-
-//crappy diff algorithm which handles simple replace cases
-//returns range of change:        [  ] -> []
-//example:
-//> diff('the huge cute pink elephant ate children',
-//       'the huge cute gray elephant ate children')
-//[14, 18, "gray"]
-function diff(a, b){
-  var al = a.length, bl = b.length, s = -1, e = -1;
-  while(s++ < al && a[s] == b[s]);
-  while(e++ < al && a[al-e] == b[bl-e]);
-  return [s,al-e+1,b.substring(s,bl-e+1)]
-}
+var msgs = {}; //Full IDs: host/message.
 
 
 function getACL(host, msg){
@@ -122,19 +37,7 @@ function applyDelta(id, host, delta){
 			acl: {
 				def: {}
 			},
-			elements: {}, //elements are similar to annotations and elements in wave
-			//handling is similar to ACLs.
-			/*
-				{
-					'dfjlaskdjf': { //element ID
-						start: 0 //place in text where it begins
-						end: 0 //place in text where it ends (optional)
-						
-						url: //gadgets
-						state_blah: //gadget state
-					}
-				}
-			*/
+			elements: {},
 			v: 0,
 			subscribers: [],
 			children: [],
@@ -142,21 +45,21 @@ function applyDelta(id, host, delta){
 		}
 	}
 	
+	delta.host = host; //dont trust the info supplied by the fed server completely
+	delta.user = delta.user || 'undefined';
+	//delta SHOULD contain a user attribute!
 	var msg = msgs[id];
 	
-	//if(delta.v != msg.v){
-	//	//version mismatch. FAIL
-	//	throw 'version mismatch'
-	//}
+	if(delta.v != msg.v + 1){
+		//version mismatch. FAIL
+		throw 'version mismatch'
+	}
 	
 	var can = getACL(host, msg);
-	
-	var changed = false;
-	
+
 	if(can.write_acl && delta.acl){
 		for(var i in delta.acl){
 			msg.acl[i] = msg.acl[i] || {};
-			changed = true;
 			for(var k in delta.acl[i])
 				msg.acl[i][k] = delta.acl[i][k];
 		}
@@ -165,17 +68,15 @@ function applyDelta(id, host, delta){
 	if(can.write_elements && delta.elements){
 		for(var i in delta.elements){
 			msg.elements[i] = msg.elements[i] || {};
-			changed = true;
 			for(var k in delta.elements[i])
 				msg.elements[i][k] = delta.elements[i][k];
 		}
 	}
 	
-	if(can.add_children && delta.add_children){
-		//TODO: support Reordering
+	//TODO: support Reordering	
+	if(can.add_children && delta.add_children)
 		msg.children = msg.children.concat(delta.add_children);
-		changed = true;
-	}
+
 	
 	//A *very* basic totally not working real OT that will have
 	//TONS OF COLLISIONS. DO NOT USE THIS IN ANYTHING OTHER THAN
@@ -188,30 +89,53 @@ function applyDelta(id, host, delta){
 		}
 	}
 	
-	if(changed == true){
-		msg.time = +new Date;
-		msg.v++; //increment version
-		msg.history[msg.v] = delta;
-	}
+	msg.time = +new Date;
+	msg.v++; //increment version
+	msg.history[msg.v] = delta;
 	
 	return changed
 }
 
+
+function publishDelta(msg, delta){
+	//send the delta to all the subscribers
+	for(var i = 0, l = msg.subscribers.length; i < l; i++){
+		var sub = msg.subscribers[i];
+		sign.POST(sub+'/push', JSON.stringify(delta), function(){
+			//do nothing
+		})
+	}
+}
+
+
+
+function getMessage(id, host, opt){
+	opt = opt || {};
+	if(!(id in msgs)){
+		//throw erruroh
+		throw "Message Not Found"
+	}
+	var msg = msgs[id];
+	var can = getACL(host, msg);
+	var n = {
+		time: msg.time,
+		v: msg.v,
+		children: msg.children
+	};
+	
+	n.acl = msg.acl;
+	n.text = msg.text;
+	
+	if(opt.history)
+		n.history = msg.history; //TODO: Read ACLs
+	
+	return n;
+}
+
+
 function loadMessage(id, callback){
 	if(id in msgs){
-		if(callback) callback(msgs[id]);
-		var msg = msgs[id];
-		var can = getACL(host, msg);
-		var n = {
-			time: msg.time,
-			v: msg.v,
-			children: msg.children
-
-		};
-
-		if(can.read_acl) n.acl = msg.acl;
-		if(can.read_text) n.text = msg.text;
-		callback(n);
+		if(callback) callback(getMessage(id, HOST);
 	}else{
 		signedRequest(id, JSON.stringify({
 			load: true
@@ -235,22 +159,7 @@ http.createServer(function (req, res) {
 			chunks += chunk;
 		})
 		req.on('end', function(){
-			if(req.url == '/auth'){
-				console.log('sending auth token')
-				var json = JSON.parse(chunks)
-				res.writeHead(200,{})
-				if(host_cache[json.host] == json.token){
-					var host_token = crypto.createHash('sha1')
-							.update(token_secret+'//'+json.host)
-							.digest('base64');
-					res.end(host_token)
-				}else{
-					console.log(host_cache,json.host)
-					console.log('wrong token thingy')
-					res.end('phayle');
-				}
-				
-			}else if(req.url == '/push'){
+			if(req.url == '/push'){
 				checkSignature(req.headers.host, req.headers.sig, chunks, function(){
 					res.writeHead(200,{})
 
@@ -295,7 +204,6 @@ http.createServer(function (req, res) {
 			})
 		}else if(req.url.substr(0,6) == '/comet'){
 			var poop = url.parse(req.url, true);
-			
 			var v = parseInt(poop.query.v,10);			
 			var p = poop.query.url;
 			res.writeHead(200,{})

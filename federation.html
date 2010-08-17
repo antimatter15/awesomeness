@@ -203,7 +203,7 @@ function render(id){
 	}
 	
 </style>
-<form onsubmit="render(this.root.value);return false">
+<form onsubmit="try{render(this.root.value)}catch(err){};return false">
 	<input type='text' name='root' value='http://localhost:8124/supertestparent' style="width:500px" autofocus>
 </form>
 <div id="main">

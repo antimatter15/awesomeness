@@ -1,13 +1,14 @@
 //Storage
 var url = require('url'),
 		fs = require('fs'),
-		crypto = require('crypto'),
+		sign = require('./communication'),
 	  http = require('http');
 
+sign.set_url('http://localhost:8124');
+sign.set_secret('ksdjf2wmweiofwtjh5stjeow8ru');
 
-var my_url = 'http://localhost:8124' //remember no trailing slash
 var msgs = {}; //partial IDs, excludes host
-var token_secret = 'aksdljffsdakfwekwljr'
+
 var globalacl = {
 	write_acl: true,
 	write_elements: true,
@@ -17,19 +18,6 @@ var globalacl = {
 
 
 var msgs = {}; //Full IDs: host/message.
-
-//crappy diff algorithm which handles simple replace cases
-//returns range of change:        [  ] -> []
-//example:
-//> diff('the huge cute pink elephant ate children',
-//       'the huge cute gray elephant ate children')
-//[14, 18, "gray"]
-function diff(a, b){
-  var al = a.length, bl = b.length, s = -1, e = -1;
-  while(s++ < al && a[s] == b[s]);
-  while(e++ < al && a[al-e] == b[bl-e]);
-  return [s,al-e+1,b.substring(s,bl-e+1)]
-}
 
 
 function getACL(host, msg){
@@ -49,19 +37,7 @@ function applyDelta(id, host, delta){
 			acl: {
 				def: {}
 			},
-			elements: {}, //elements are similar to annotations and elements in wave
-			//handling is similar to ACLs.
-			/*
-				{
-					'dfjlaskdjf': { //element ID
-						start: 0 //place in text where it begins
-						end: 0 //place in text where it ends (optional)
-						
-						url: //gadgets
-						state_blah: //gadget state
-					}
-				}
-			*/
+			elements: {},
 			v: 0,
 			subscribers: [],
 			children: [],
@@ -70,26 +46,20 @@ function applyDelta(id, host, delta){
 	}
 	
 	delta.host = host; //dont trust the info supplied by the fed server completely
-	
 	delta.user = delta.user || 'undefined';
-	
 	//delta SHOULD contain a user attribute!
-	
 	var msg = msgs[id];
 	
-	//if(delta.v != msg.v){
-	//	//version mismatch. FAIL
-	//	throw 'version mismatch'
-	//}
+	if(delta.v != msg.v + 1){
+		//version mismatch. FAIL
+		throw 'version mismatch'
+	}
 	
 	var can = getACL(host, msg);
-	
-	var changed = false;
-	
+
 	if(can.write_acl && delta.acl){
 		for(var i in delta.acl){
 			msg.acl[i] = msg.acl[i] || {};
-			changed = true;
 			for(var k in delta.acl[i])
 				msg.acl[i][k] = delta.acl[i][k];
 		}
@@ -98,17 +68,15 @@ function applyDelta(id, host, delta){
 	if(can.write_elements && delta.elements){
 		for(var i in delta.elements){
 			msg.elements[i] = msg.elements[i] || {};
-			changed = true;
 			for(var k in delta.elements[i])
 				msg.elements[i][k] = delta.elements[i][k];
 		}
 	}
 	
-	if(can.add_children && delta.add_children){
-		//TODO: support Reordering
+	//TODO: support Reordering	
+	if(can.add_children && delta.add_children)
 		msg.children = msg.children.concat(delta.add_children);
-		changed = true;
-	}
+
 	
 	//A *very* basic totally not working real OT that will have
 	//TONS OF COLLISIONS. DO NOT USE THIS IN ANYTHING OTHER THAN
@@ -121,10 +89,10 @@ function applyDelta(id, host, delta){
 		}
 	}
 	
-	if(changed == true){
-		msg.time = +new Date;
-		msg.v++; //increment version
-	}
+	msg.time = +new Date;
+	msg.v++; //increment version
+	msg.history[msg.v] = delta;
+	
 	return changed
 }
 
@@ -133,7 +101,7 @@ function publishDelta(msg, delta){
 	//send the delta to all the subscribers
 	for(var i = 0, l = msg.subscribers.length; i < l; i++){
 		var sub = msg.subscribers[i];
-		signedPOST(sub+'/push', JSON.stringify(delta), function(){
+		sign.POST(sub+'/push', JSON.stringify(delta), function(){
 			//do nothing
 		})
 	}
@@ -141,7 +109,7 @@ function publishDelta(msg, delta){
 
 
 
-function loadMessage(id, host, opt){
+function getMessage(id, host, opt){
 	opt = opt || {};
 	if(!(id in msgs)){
 		//throw erruroh
@@ -208,16 +176,7 @@ http.createServer(function (req, res) {
 				res.end(data)
 			})
 		}else if(req.url == '/auth'){
-			var host_token = crypto.createHash('sha1')
-					.update(token_secret+'//'+req.headers.host)
-					.digest('base64');
-			if(req.headers.secret == host_token){
-				res.writeHead(200);
-				res.end('YAY')
-			}else{
-				res.writeHead(404); //do anohter server error
-				res.end('FAIL')
-			}
+			sign.auth(req, res)
 		}else{
 			var u = url.parse(req.url, true);
 			var mid = u.pathname.substr(1);
@@ -225,7 +184,7 @@ http.createServer(function (req, res) {
 			checkSecret(req, function(){
 				if(mid in msgs){
 					res.writeHead(200)
-					res.end(JSON.stringify(loadMessage(mid, req.headers.host, opt)))
+					res.end(JSON.stringify(getMessage(mid, req.headers.host, opt)))
 				}else{
 					res.writeHead(404)
 					//not found

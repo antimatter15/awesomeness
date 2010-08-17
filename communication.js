@@ -2,8 +2,36 @@
 	Through any signed message, there is a signature
 	the other party checks that the token is valid
 */
+var url = require('url'),
+		crypto = require('crypto'),
+	  http = require('http');
+	
 var host_secrets = {};
+var token_secret = '';
+var my_url = '' //remember no trailing slash
 
+
+exports.set_url = function set_url(url){
+	my_url = url;
+}
+
+exports.set_secret = function set_secret(secret){
+	token_secret = secret;
+}
+
+
+exports.auth = function auth(req, res){
+	var host_token = crypto.createHash('sha1')
+			.update(token_secret+'//'+req.headers.host)
+			.digest('base64');
+	if(req.headers.secret == host_token){
+		res.writeHead(200);
+		res.end('YAY')
+	}else{
+		res.writeHead(404); //do anohter server error
+		res.end('FAIL')
+	}
+}
 
 exports.check = function checkSecret(req, win, fail){
 	var host = req.headers.host, secret = req.headers.secret;

@@ -53,17 +53,6 @@ Goals:
 		
 		
 		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
 Hopefully Unambiguous Protocol/Implementation Specification
 
 Storage Server
@@ -122,7 +111,8 @@ Storage Server
 		
 		(Signed) host/message?history=true
 			GET:
-				Include History
+				Same as above with additional history thing that includes history
+				
 		
 		Playback?
 			(Signed) host/message/version-version2
@@ -172,6 +162,18 @@ Proxy Server
 		POST:
 			set blip properties
 			
-			
+			 //elements are similar to annotations and elements in wave
+			//handling is similar to ACLs.
+			/*
+				{
+					'dfjlaskdjf': { //element ID
+						start: 0 //place in text where it begins
+						end: 0 //place in text where it ends (optional)
+						
+						url: //gadgets
+						state_blah: //gadget state
+					}
+				}
+			*/
 			
 			
