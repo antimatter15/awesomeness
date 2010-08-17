@@ -69,15 +69,21 @@ Hopefully Unambiguous Protocol/Implementation Specification
 Storage Server
 	API:
 		host/auth
-			GET
-	
-		host/message
+			POST (JSON):
+				{
+					token: //a signed request
+					host: //hostID of the requesting server
+				}
+		
+		host/message?history=true
 			POST:
 				submit things
-				load = return the contents of the message
-				history[start,length] = return history of message
-				
-				
+			GET:
+				Download latest version of message
+		
+		Playback?
+			host/message/version-version2
+		
 				
 Authentication
 	Proxy Server sends Request to host, including signature.
@@ -122,3 +128,7 @@ Proxy Server
 			request the current state of a blip
 		POST:
 			set blip properties
+			
+			
+			
+			

@@ -215,6 +215,7 @@ var msgs = {}; //Full IDs: host/message.
 function loadMessage(id, host){
 	if(!(id in msgs)){
 		//throw erruroh
+		throw "Message Not Found"
 	}
 	var msg = msgs[id];
 	var can = getACL(host, msg);
@@ -273,14 +274,7 @@ http.createServer(function (req, res) {
 					}
 					
 					res.writeHead(200,{})
-					var output = {};
-					
-					if(delta.load)
-						output = loadMessage(mid, host);
-					
-					if(delta.history){
-						output.history = msg.history.slice(delta.history[0], delta.history[1])
-					}
+					var output = {}; //todo: try-catch errors and put in output
 					
 					res.write(JSON.stringify(output))
 					res.end();
@@ -303,6 +297,11 @@ http.createServer(function (req, res) {
 			})
 			return;
 		}else{
+			var u = url.parse(req.url, true);
+			var mid = u.pathname.substr(1);
+			var opt = u.query;
+			
+			var msg = loadMessage(mid, )
 			
 		}
 	}
