@@ -67,6 +67,7 @@ function update(id,diff){
 	xhr.open('POST','/',false);
 	xhr.send(JSON.stringify({
 		id: id,
+		v: msgs[id].v+1,
 		ot: [diff]
 	}));
 	console.log(xhr.responseText)
@@ -85,14 +86,32 @@ function listen(url, callback){
 	}
 	xhr.send(null)
 }
+/* //awesome diff algorithm that i didnt make
+function diff(a, b){	
+  var al = a.length, bl = b.length, s = -1, e = -1;
+	var shortest = (b.length > a.length) ? a.length : b.length;
+  var largest = (b.length > a.length) ? b.length : a.length; 
+	
+	var i = 0;
+	for (; i < shortest; i++) {
+		if(a[i] != b[i]) break;
+	}
+	
+	var j = 0;
+	for(; j < shortest - i; j++) {
+		if(a[al-j] != b[bl-j]) break;
+	}
+	
+  return [i,al-j,b.substring(i,bl-j+1)]
+}*/
+
 
 function diff(a, b){
-  var al = a.length, bl = b.length, s = -1, e = -1;
-  while(s++ < al && a[s] == b[s]);
-  while(e++ < al && a[al-e] == b[bl-e]);
-  return [s,al-e+1,b.substring(s,bl-e+1)]
+	var al = a.length, bl = b.length, shortest = Math.min(bl, al), i = 0, j = 0;
+	while(i < shortest && a[i] == b[i++]);
+	while(j < shortest - i && a[al-j] == b[bl-j++]);
+  return [i,al-j,b.substring(i,bl-j+1)]
 }
-
 
 function loadMessage(id){
 	//todo: make async

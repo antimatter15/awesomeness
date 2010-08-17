@@ -11,17 +11,18 @@ var token_secret = '';
 var my_url = '' //remember no trailing slash
 exports.my_url = '';
 
-exports.set_url = function set_url(url){
+var set_url = exports.set_url = function set_url(url){
 	exports.my_url = my_url = url;
 	
 }
 
-exports.set_secret = function set_secret(secret){
+var set_secret = exports.set_secret = function set_secret(secret){
 	token_secret = secret;
 }
 
 
-exports.auth = function auth(req, res){
+var auth = exports.auth = function auth(req, res){
+	console.log('AUTHING STUFF')
 	var host_token = crypto.createHash('sha1')
 			.update(token_secret+'//'+req.headers.host)
 			.digest('base64');
@@ -34,7 +35,8 @@ exports.auth = function auth(req, res){
 	}
 }
 
-exports.check = function checkSecret(req, win, fail){
+var checkSecret = exports.check = function checkSecret(req, win, fail){
+	console.log('checking secret')
 	var host = req.headers.host, secret = req.headers.secret;
 	if(host in host_secrets){
   	;(secret == host_secrets[host])?win():fail();
@@ -53,7 +55,8 @@ exports.check = function checkSecret(req, win, fail){
 //assumes that TLS is being used to secure the means 
 //of transfer. so the verification is quite extremely
 //weak.
-exports.signHeader = function signHeader(host_url, headers){
+var signHeader = exports.signHeader = function signHeader(host_url, headers){
+	console.log('signing header')
 	var r = (headers||{});
 	var h = url.parse(host_url);
 	var host = h.protocol+'//'+h.host;
@@ -64,7 +67,8 @@ exports.signHeader = function signHeader(host_url, headers){
 	return r
 }
 
-exports.doRequest = function doRequest(host_url, head, payload, callback){
+var doRequest = exports.doRequest = function doRequest(host_url, head, payload, callback){
+	console.log('doing request to '+host_url)
 	var h = url.parse(host_url);
 	var cl = http.createClient(h.port||80, h.hostname); 
 	//TODO: change default to TLS port

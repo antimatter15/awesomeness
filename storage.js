@@ -30,19 +30,23 @@ function getACL(host, msg){
 }
 
 
+function createMessage(id){
+	msgs[id] = {
+		history: [], //a list of all operations, 0 -> v
+		acl: {
+			def: {}
+		},
+		elements: {},
+		v: 0,
+		subscribers: [],
+		children: [],
+		text: ''
+	}
+}
+
 function applyDelta(id, host, delta){
 	if(!(id in msgs)){
-		msgs[id] = {
-			history: [], //a list of all operations, 0 -> v
-			acl: {
-				def: {}
-			},
-			elements: {},
-			v: 0,
-			subscribers: [],
-			children: [],
-			text: ''
-		}
+		createMessage(id)
 	}
 	
 	delta.host = host; //dont trust the info supplied by the fed server completely
@@ -52,7 +56,8 @@ function applyDelta(id, host, delta){
 	
 	if(delta.v != msg.v + 1){
 		//version mismatch. FAIL
-		throw 'version mismatch'
+		console.log('version mismatch Expected:'+(msg.v+1)+' Got:'+delta.v)
+		throw 'version mismatch Expected:'+(msg.v+1)+' Got:'+delta.v
 	}
 	
 	var can = getACL(host, msg);
@@ -140,7 +145,7 @@ http.createServer(function (req, res) {
 		})
 		req.on('end', function(){
 			console.log('checking sig')
-			checkSecret(req, function(){
+		  sign.check(req, function(){
 				var mid = req.url.substr(1);
 				var delta = JSON.parse(chunks);
 				var host = req.headers.host;
@@ -180,22 +185,19 @@ http.createServer(function (req, res) {
 		}else{
 			var u = url.parse(req.url, true);
 			var mid = u.pathname.substr(1);
-			var opt = u.query;
+			var opt = u.query || {};
 			var host = req.headers.host;
-			checkSecret(req, function(){
+			sign.check(req, function(){
 
-				if(mid in msgs){
-					res.writeHead(200)
+				if(!(mid in msgs))
+					createMessage(mid);
+				
+				res.writeHead(200)
+				if(opt.subscribe && msgs[mid].subscribers.indexOf(host) == -1)
+					msgs[mid].subscribers.push(host);
 					
-					if(opt.subscribe && msgs[mid].subscribers.indexOf(host) == -1)
-						msgs[mid].subscribers.push(host);
-					
-					res.end(JSON.stringify(getMessage(mid, req.headers.host, opt)))
-				}else{
-					res.writeHead(404)
-					//not found
-					res.end('{fail: "Message not found"}')
-				}
+				res.end(JSON.stringify(getMessage(mid, req.headers.host, opt)))
+				
 			}, function(){
 				res.writeHead(503); //change error code. im offline and cant look it up.
 				res.end('Invalid Signature')				

@@ -91,6 +91,9 @@ function applyDelta(id, host, delta){
 	
 	msg.time = +new Date;
 	msg.v++; //increment version
+	
+	if(!msg.history) msg.history = [];
+	
 	msg.history[msg.v] = delta;
 	
 	return changed
@@ -134,17 +137,19 @@ function getMessage(id, host, opt){
 
 
 function loadMessage(id, callback, opt){
-	
 	if(id in msgs){
-		if(callback) callback(getMessage(id, sign.my_url);
+		if(callback) callback(getMessage(id, sign.my_url));
 	}else{
-		sign.GET(id+"?history=true&subscribe=true",function(all){
+		console.log('load message stuff')
+		sign.GET(id+"?history=true&subscribe=true", function(all){
+			console.log(all)
 			var json = JSON.parse(all);
 			msgs[id] = json;
+			loadMessage(id, callback, opt)
+			
 			for(var i = msgs[id].children, l = i.length; l--;){
 				loadMessage(i[l]); //just cache it and subscribe
 			}
-			loadMessage(id, callback, opt)
 		})
 	}
 }
@@ -160,7 +165,7 @@ http.createServer(function (req, res) {
 		})
 		req.on('end', function(){
 			if(req.url == '/push'){
-				checkSecret(req, function(){
+				sign.check(req, function(){
 					res.writeHead(200)
 					var json = JSON.parse(chunks);
 					console.log('applying delta for ',json.id)
@@ -198,6 +203,8 @@ http.createServer(function (req, res) {
 				res.writeHead(200,{'content-type': 'text/html'});
 				res.end(data)
 			})
+		}else if(req.url == '/auth'){
+			sign.auth(req, res);
 		}else if(req.url.substr(0,6) == '/comet'){
 			var poop = url.parse(req.url, true);
 			var v = parseInt(poop.query.v,10);			
@@ -212,11 +219,12 @@ http.createServer(function (req, res) {
 			console.log('new listener for req from ',url)
 			if(!comet_listeners[p]) comet_listeners[p] = [];
 			comet_listeners[p].push(res);
-		}else if(req.url == '/loadmsg'){
+		}else if(req.url.indexOf('/loadmsg') == 0){
 			var u = url.parse(req.url, true);
 			var opt = u.query;
 			loadMessage(opt.url, function(data){
 				res.writeHead(200)
+				console.log('WHOOOOOTTTT',JSON.stringify(data))
 				res.end(JSON.stringify(data))
 			})
 		}
