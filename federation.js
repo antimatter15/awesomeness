@@ -191,13 +191,27 @@ function applyDelta(id, host, delta){
 	if(changed == true){
 		msg.time = +new Date;
 		msg.v++; //increment version
+		msg.history[msg.v] = delta;
 	}
+	
 	return changed
 }
 
 function loadMessage(id, callback){
 	if(id in msgs){
 		if(callback) callback(msgs[id]);
+		var msg = msgs[id];
+		var can = getACL(host, msg);
+		var n = {
+			time: msg.time,
+			v: msg.v,
+			children: msg.children
+
+		};
+
+		if(can.read_acl) n.acl = msg.acl;
+		if(can.read_text) n.text = msg.text;
+		callback(n);
 	}else{
 		signedRequest(id, JSON.stringify({
 			load: true
@@ -210,6 +224,7 @@ function loadMessage(id, callback){
 		})
 	}
 }
+
 
 var comet_listeners = {};
 
@@ -244,10 +259,12 @@ http.createServer(function (req, res) {
 					applyDelta(json.id, req.headers.host, json)
 					res.end();
 					console.log('push kame frum',json.id)
-					var cl = comet_listeners[json.id]
+					var cl = comet_listeners[json.id];
+					json.v = msgs[json.id].v;
+					var op = JSON.stringify(json)
 					if(cl){
 						for(var i = cl.length;i--;)
-							cl[i].end(chunks); //get rid of it!
+							cl[i].end(op); //get rid of it!
 					}
 					comet_listeners[json.id] = [];
 				},function(){
@@ -259,11 +276,12 @@ http.createServer(function (req, res) {
 				var json = JSON.parse(chunks);
 				json.subscribe = true;
 				res.writeHead(200,{})
+				
 				signedRequest(json.id, JSON.stringify(json), function(stuff){
-					//do nothin?
-					//res.write('meow kitty')
 					res.end(stuff)
 				})
+				
+				
 			}
 			
 		})
@@ -275,12 +293,23 @@ http.createServer(function (req, res) {
 				res.writeHead(200,{'content-type': 'text/html'});
 				res.end(data)
 			})
-		}else if(req.url.substr(0,7) == '/comet/'){
-			var url = unescape(req.url.substr(7));
-			console.log('new listener for req from ',url)
-			if(!comet_listeners[url]) comet_listeners[url] = [];
+		}else if(req.url.substr(0,6) == '/comet'){
+			var poop = url.parse(req.url, true);
+			
+			var v = parseInt(poop.query.v,10);			
+			var p = poop.query.url;
 			res.writeHead(200,{})
-			comet_listeners[url].push(res);
+			if(msgs[p] && v < msgs[p].v){
+				var j = JSON.parse(JSON.stringify(msgs[p].history[v++]));
+				j.v = v;
+				res.end(JSON.stringify(j));
+				return;
+			}
+		
+			console.log('new listener for req from ',url)
+			if(!comet_listeners[p]) comet_listeners[p] = [];
+			
+			comet_listeners[p].push(res);
 		}
 	}
 	

@@ -5,9 +5,14 @@ function applyDelta(id, delta){
 			loadMessage(id)
 	}
 	
+	
+	
 	console.log('got delta',delta)
 	
 	var msg = msgs[id];
+	
+	if(delta.v < msg.v) return;
+	
 	var changed = false;
 	
 	if(delta.acl){
@@ -52,7 +57,7 @@ function applyDelta(id, delta){
 	//console.log(msg.text)
 	
 	var ed = document.getElementById(id).editor;
-	if(!ed.contentEditable) ed.innerHTML = msg.text;
+	if(ed.contentEditable == 'false') ed.innerText = msg.text;
 	return changed
 }
 
@@ -69,7 +74,7 @@ function update(id,diff){
 
 function listen(url, callback){
 	var xhr = new XMLHttpRequest();
-	xhr.open('get','/comet/'+encodeURIComponent(url), true);
+	xhr.open('get','/comet/?v='+(msgs[url].v)+'&url='+encodeURIComponent(url), true);
 	xhr.onreadystatechange = function(){
 		if(xhr.readyState == 4){
 			var json = JSON.parse(xhr.responseText);
@@ -100,44 +105,61 @@ function loadMessage(id){
 	var j = JSON.parse(xhr.responseText);
 	j.history = [];
 	msgs[id] = j;
-	listen(id)
+	listen(id);
 }
 
 function renderMsg(id){
 	var d = document.createElement('div');
 	var t = document.createElement('div');
-	t.innerHTML = msgs[id].text;
-	d.innerHTML = 'Message '+id+' Version '+msgs[id].v
+	t.innerText = msgs[id].text;
+	d.innerText = 'Message '+id+' Version '+msgs[id].v
 	t.className = 'text'
 	
+	var t2 = document.createElement('div');
+	t2.innerText = msgs[id].text;
+	d.appendChild(t2)
+	
 	d.id = id;
-	d.editor = t;
+	d.editor = t2;
 	
 	var lasttext = '';
 	
 	setInterval(function(){
-		if(!t.parentNode || t.contentEditable == false) return false;
-		if(msgs[id].text == t.innerHTML) return;
-		var d = diff(msgs[id].text, t.innerHTML) //TODO: something smarter
+		if(!t.parentNode || t.contentEditable == 'false') return false;
+		
+		if(msgs[id].text == t.innerText) return;
+		
+		var d = diff(msgs[id].text, t.innerText) //TODO: something smarter
+		
+		console.log(msgs[id].v)
+		
 		if(msgs[id].text != lasttext){
-			console.log('odd sync mismatch', lasttext, msgs[id].tex)
+			console.log('odd sync mismatch', lasttext, msgs[id].text)
 		}
 		
-		lasttext = t.innerHTML;
+		lasttext = t.innerText;
 		
 		update(id, d)
-	},1000)
+	},100)
 	
 	var b = document.createElement('button');
 	b.onclick = function(){
 		t.contentEditable = t.contentEditable == 'false';
 	}
-	b.innerHTML = 'Toggle Edit Mode'
+	b.innerText = 'Toggle Edit Mode'
 	d.appendChild(b)
 	
 	
 	d.appendChild(t)
 	d.className = 'message'
+	
+	var b = document.createElement('button');
+	b.onclick = function(){
+		
+	}
+	b.innerText = 'Create Reply'
+	d.appendChild(b)
+	
 	return d
 }
 
@@ -157,6 +179,7 @@ function render(id){
 		}
 		parent.appendChild(el)
 	};
+	document.getElementById('main').innerText = '';
 	show(document.getElementById('main'), id)
 }
 
@@ -181,7 +204,7 @@ function render(id){
 	
 </style>
 <form onsubmit="render(this.root.value);return false">
-	<input type='text' name='root' value='http://localhost:8124/supertestparent' style="width:500px">
+	<input type='text' name='root' value='http://localhost:8124/supertestparent' style="width:500px" autofocus>
 </form>
 <div id="main">
 </div>

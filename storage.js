@@ -211,8 +211,6 @@ function publishDelta(msg, delta){
 }
 
 
-
-
 var msgs = {}; //Full IDs: host/message.
 function loadMessage(id, host){
 	if(!(id in msgs)){
@@ -304,6 +302,8 @@ http.createServer(function (req, res) {
 				res.end(data)
 			})
 			return;
+		}else{
+			
 		}
 	}
 	
