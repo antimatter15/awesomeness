@@ -127,6 +127,12 @@ function applyDelta(id, host, delta){
 		}
 	}
 	
+	delta.host = host; //dont trust the info supplied by the fed server completely
+	
+	delta.user = delta.user || 'undefined';
+	
+	//delta SHOULD contain a user attribute!
+	
 	var msg = msgs[id];
 	
 	//if(delta.v != msg.v){
