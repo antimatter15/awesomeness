@@ -146,26 +146,36 @@ http.createServer(function (req, res) {
 		req.on('end', function(){
 			console.log('checking sig')
 		  sign.check(req, function(){
-				var mid = req.url.substr(1);
-				var delta = JSON.parse(chunks);
-				var host = req.headers.host;
-				var changed = applyDelta(mid, host, delta)
-				var msg = msgs[mid];
-				var can = getACL(host, msg);
+				try{
+					var mid = req.url.substr(1);
+					var delta = JSON.parse(chunks);
+					var host = req.headers.host;
+					var changed = applyDelta(mid, host, delta)
+					var msg = msgs[mid];
+					var can = getACL(host, msg);
 				
-				if(delta.subscribe && msg.subscribers.indexOf(host) == -1)
-					msg.subscribers.push(host);
+					if(delta.subscribe && msg.subscribers.indexOf(host) == -1)
+						msg.subscribers.push(host);
 				
-				if(changed){
-					publishDelta(msgs[mid], delta); //publish delta
+					if(changed){
+						publishDelta(msgs[mid], delta); //publish delta
+					}
+				
+					res.writeHead(200)
+					var output = {}; //todo: try-catch errors and put in output
+				
+					res.write(JSON.stringify(output))
+					res.end();
+				}catch(err){
+					res.writeHead(500)
+					console.log('---------------------------')
+					console.log('ERROR!!!')
+					console.log('ERROR!!!')
+					console.log(err)
+					console.log('---------------------------')
+					
+					res.end('{"fail": "'+err.message+'"}')
 				}
-				
-				res.writeHead(200,{})
-				var output = {}; //todo: try-catch errors and put in output
-				
-				res.write(JSON.stringify(output))
-				res.end();
-				
 			},function(){
 				console.log('signature failure')
 				res.writeHead(503, {})

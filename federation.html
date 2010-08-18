@@ -56,8 +56,11 @@ function applyDelta(id, delta){
 	}
 	//console.log(msg.text)
 	
-	var ed = document.getElementById(id).editor;
-	if(ed.contentEditable == 'false') ed.innerText = msg.text;
+	var ed = document.getElementById(id);
+	if(ed.editor.contentEditable == 'false') ed.editor.innerText = msg.text;
+	
+	ed.header.innerText = 'Message '+id+' Version '+msgs[id].v;
+	
 	return changed
 }
 
@@ -136,15 +139,21 @@ function renderMsg(id){
 	var d = document.createElement('div');
 	var t = document.createElement('div');
 	t.innerText = msgs[id].text;
-	d.innerText = 'Message '+id+' Version '+msgs[id].v
+	
+	var hdr = document.createElement('span');
+	hdr.innerText = 'Message '+id+' Version '+msgs[id].v;
+	d.header = hdr;
+	d.appendChild(hdr)
+	
+	
 	t.className = 'text'
 	
-	var t2 = document.createElement('div');
-	t2.innerText = msgs[id].text;
-	d.appendChild(t2)
+	//var t2 = document.createElement('div');
+	//t2.innerText = msgs[id].text;
+	//d.appendChild(t2)
 	
 	d.id = id;
-	d.editor = t2;
+	d.editor = t//2;
 	
 	var lasttext = '';
 	
@@ -155,7 +164,7 @@ function renderMsg(id){
 		
 		var d = diff(msgs[id].text, t.innerText) //TODO: something smarter
 		
-		console.log(msgs[id].v)
+		console.log('Loaded Version', msgs[id].v)
 		
 		if(msgs[id].text != lasttext){
 			console.log('odd sync mismatch', lasttext, msgs[id].text)

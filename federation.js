@@ -211,8 +211,9 @@ http.createServer(function (req, res) {
 			var p = poop.query.url;
 			res.writeHead(200)
 			if(msgs[p] && v < msgs[p].v){
-				var j = JSON.parse(JSON.stringify(msgs[p].history[v++]));
-				j.v = v;
+				var j = JSON.parse(JSON.stringify(msgs[p].history[v+1]));
+				j.v = v+1;
+				j.__old = 'NOT STREAMING'
 				res.end(JSON.stringify(j));
 				return;
 			}
