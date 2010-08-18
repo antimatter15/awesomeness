@@ -50,9 +50,16 @@ function applyDelta(id, host, delta){
 	}
 	
 	delta.host = host; //dont trust the info supplied by the fed server completely
-	delta.user = delta.user || 'undefined';
+	delta.user = delta.user || 'unknown';
 	//delta SHOULD contain a user attribute!
+	
 	var msg = msgs[id];
+	
+	
+	//msg.host = host; //the creator
+	//msg.creator = delta.user || 'unknown';
+
+	
 	
 	if(delta.v != msg.v + 1){
 		//version mismatch. FAIL
@@ -125,6 +132,8 @@ function getMessage(id, host, opt){
 	var n = {
 		time: msg.time,
 		v: msg.v,
+		creator: msg.creator,
+		host: msg.host,
 		children: msg.children
 	};
 	

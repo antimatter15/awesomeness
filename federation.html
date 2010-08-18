@@ -16,6 +16,7 @@ function applyDelta(id, delta){
 			msg.acl[i] = msg.acl[i] || {};
 			for(var k in delta.acl[i])
 				msg.acl[i][k] = delta.acl[i][k];
+				
 		}
 	}
 	
@@ -53,9 +54,12 @@ function applyDelta(id, delta){
 	
 	var ed = document.getElementById(id);
 	if(ed.editor.contentEditable == 'false')
-	 ed.editor.innerText = msg.text;
+	 ed.editor.innerHTML = msg.text;
 	
-	ed.header.innerText = 'Message '+id+' Version '+msgs[id].v;
+	var time = new Date;
+	time.setTime(msgs[id].time);
+	ed.header.innerText = id+' v'+msgs[id].v+' '+time.toString();
+	
 }
 
 function update(id,diff){
@@ -75,7 +79,7 @@ function add_child(id){
 	xhr.send(JSON.stringify({
 		id: id,
 		v: msgs[id].v+1,
-		add_children: ['http://localhost:8124/'+Math.random().toString(36).substr(2,6)]
+		add_children: ['http://localhost:8124/'+Math.random().toString(36).substr(2,16)]
 	}));
 	console.log(xhr.responseText)
 }
@@ -140,6 +144,13 @@ function loadMessage(id){
 	listen(id);
 }
 
+function parseHTML(html){
+	return html.replace(/<message>(.+)<\/message>/g, function(a, msgid){
+		
+	})
+}
+
+
 function renderMsg(id){
 	/*
 		WARNING:
@@ -147,10 +158,12 @@ function renderMsg(id){
 	*/
 	var d = document.createElement('div');
 	var t = document.createElement('div');
-	t.innerText = msgs[id].text;
+	t.innerHTML = msgs[id].text;
 	
 	var hdr = document.createElement('span');
-	hdr.innerText = 'Message '+id+' Version '+msgs[id].v;
+	var time = new Date;
+	time.setTime(msgs[id].time);
+	hdr.innerText = id+' v'+msgs[id].v+' '+time.toString();
 	d.header = hdr;
 	d.appendChild(hdr)
 	
@@ -169,9 +182,9 @@ function renderMsg(id){
 	setInterval(function(){
 		if(!t.parentNode || t.contentEditable == 'false') return false;
 		
-		if(msgs[id].text == t.innerText) return;
+		if(msgs[id].text == t.innerHTML) return;
 		
-		var d = diff(msgs[id].text, t.innerText) //TODO: something smarter
+		var d = diff(msgs[id].text, t.innerHTML) //TODO: something smarter
 		
 		console.log('Loaded Version', msgs[id].v)
 		
@@ -179,7 +192,7 @@ function renderMsg(id){
 			console.log('odd sync mismatch', lasttext, msgs[id].text)
 		}
 		
-		lasttext = t.innerText;
+		lasttext = t.innerHTML;
 		
 		update(id, d)
 	},100)
@@ -188,19 +201,21 @@ function renderMsg(id){
 	b.onclick = function(){
 		t.contentEditable = t.contentEditable == 'false';
 	}
-	b.innerText = 'Toggle Edit Mode'
+	b.innerText = 'Toggle Edit'
+	d.appendChild(b)
+
+	var b = document.createElement('button');
+	b.onclick = function(){
+		add_child(id)
+	}
+	b.innerText = 'Reply'
 	d.appendChild(b)
 	
 	
 	d.appendChild(t)
 	d.className = 'message'
 	
-	var b = document.createElement('button');
-	b.onclick = function(){
-		add_child(id)
-	}
-	b.innerText = 'Create Reply'
-	d.appendChild(b)
+
 
 
 	var th = document.createElement('div');
@@ -223,7 +238,7 @@ function render(id){
 		}
 		parent.appendChild(el)
 	};
-	document.getElementById('main').innerText = '';
+	document.getElementById('main').innerHTML = '';
 	show(document.getElementById('main'), id)
 }
 
@@ -247,7 +262,7 @@ function render(id){
 	}
 	
 </style>
-<form onsubmit="try{render(this.root.value)}catch(err){};return false">
+<form onsubmit="var v=this.root.value;setTimeout(function(){render(v)},0);return false">
 	<input type='text' name='root' value='http://localhost:8124/supertestparent' style="width:500px" autofocus>
 </form>
 <div id="main">

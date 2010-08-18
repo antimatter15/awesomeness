@@ -46,9 +46,15 @@ function applyDelta(id, host, delta){
 	}
 	
 	delta.host = host; //dont trust the info supplied by the fed server completely
-	delta.user = delta.user || 'undefined';
-	//delta SHOULD contain a user attribute!
+	
 	var msg = msgs[id];
+	
+	
+	//msg.host = host; //the creator
+	//msg.creator = delta.user || 'unknown';
+	
+	delta.user = delta.user || 'unknown';
+	//delta SHOULD contain a user attribute!
 	
 	if(delta.v != msg.v + 1){
 		//version mismatch. FAIL
@@ -124,6 +130,8 @@ function getMessage(id, host, opt){
 	var can = getACL(host, msg);
 	var n = {
 		time: msg.time,
+		host: msg.host,
+		creator: msg.creator,
 		v: msg.v,
 		children: msg.children
 	};
@@ -158,6 +166,7 @@ function loadMessage(id, callback, opt){
 
 
 var comet_listeners = {};
+
 
 http.createServer(function (req, res) {
 	if(req.method == 'POST'){
