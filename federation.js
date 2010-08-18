@@ -94,6 +94,8 @@ function applyDelta(id, host, delta){
 	
 	if(!msg.history) msg.history = [];
 	
+	delta.time = msg.time;
+	
 	msg.history[msg.v] = delta;
 	
 	return changed

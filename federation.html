@@ -4,21 +4,16 @@ function applyDelta(id, delta){
 	if(!(id in msgs)){
 			loadMessage(id)
 	}
-	
-	
-	
+		
 	console.log('got delta',delta)
 	
 	var msg = msgs[id];
 	
 	if(delta.v < msg.v) return;
 	
-	var changed = false;
-	
 	if(delta.acl){
 		for(var i in delta.acl){
 			msg.acl[i] = msg.acl[i] || {};
-			changed = true;
 			for(var k in delta.acl[i])
 				msg.acl[i][k] = delta.acl[i][k];
 		}
@@ -27,7 +22,6 @@ function applyDelta(id, delta){
 	if(delta.elements){
 		for(var i in delta.elements){
 			msg.elements[i] = msg.elements[i] || {};
-			changed = true;
 			for(var k in delta.elements[i])
 				msg.elements[i][k] = delta.elements[i][k];
 		}
@@ -36,7 +30,11 @@ function applyDelta(id, delta){
 	if(delta.add_children){
 		//TODO: support Reordering
 		msg.children = msg.children.concat(delta.add_children);
-		changed = true;
+		for(var i = 0; i < delta.add_children.length; i++){
+			var ci = delta.add_children[i]
+			loadMessage(ci);
+			document.getElementById(id).threadel.appendChild(renderMsg(ci));
+		}
 	}
 	
 	//A *very* basic totally not working real OT that will have
@@ -46,24 +44,19 @@ function applyDelta(id, delta){
 		for(var i = 0, l = delta.ot.length; i < l; i++){
 			var r = delta.ot[i]; //[14, 18, "gray"]
 			msg.text = msg.text.substr(0,r[0]) + r[2] + msg.text.substr(r[1]);
-			changed = true;
 		}
 	}
 	
-	if(changed == true){
-		msg.time = +new Date;
-		msg.v++; //increment version
-	}
+	msg.time = delta.time;
+	msg.v = delta.v; //increment version
 	//console.log(msg.text)
 	
 	var ed = document.getElementById(id);
-	if(ed.editor.contentEditable == 'false') ed.editor.innerText = msg.text;
+	if(ed.editor.contentEditable == 'false')
+	 ed.editor.innerText = msg.text;
 	
 	ed.header.innerText = 'Message '+id+' Version '+msgs[id].v;
-	
-	return changed
 }
-
 
 function update(id,diff){
 	var xhr = new XMLHttpRequest();
@@ -75,6 +68,18 @@ function update(id,diff){
 	}));
 	console.log(xhr.responseText)
 }
+
+function add_child(id){
+	var xhr = new XMLHttpRequest();
+	xhr.open('POST','/',false);
+	xhr.send(JSON.stringify({
+		id: id,
+		v: msgs[id].v+1,
+		add_children: ['http://localhost:8124/'+Math.random().toString(36).substr(2,6)]
+	}));
+	console.log(xhr.responseText)
+}
+
 
 function listen(url, callback){
 	var xhr = new XMLHttpRequest();
@@ -136,6 +141,10 @@ function loadMessage(id){
 }
 
 function renderMsg(id){
+	/*
+		WARNING:
+		these closures are probably prone to memory leaks. FIX IT.
+	*/
 	var d = document.createElement('div');
 	var t = document.createElement('div');
 	t.innerText = msgs[id].text;
@@ -188,10 +197,18 @@ function renderMsg(id){
 	
 	var b = document.createElement('button');
 	b.onclick = function(){
-		
+		add_child(id)
 	}
 	b.innerText = 'Create Reply'
 	d.appendChild(b)
+
+
+	var th = document.createElement('div');
+	d.threadel = th;
+	th.className = 'thread';
+
+	d.appendChild(th);
+	
 	
 	return d
 }
@@ -200,15 +217,9 @@ function render(id){
   var show = function(parent, id){
 		if(!(id in msgs)) loadMessage(id);
 		var msg = msgs[id];
-		
 		var el = renderMsg(id);
-		if(msg.children.length > 0){
-			var th = document.createElement('div');
-			th.className = 'thread';
-			for(var i = 0; i < msg.children.length; i++){ //intended to be slow. FIX IT
-				show(th, msg.children[i])
-			}
-			el.appendChild(th);
+		for(var i = 0; i < msg.children.length; i++){ //intended to be slow. FIX IT
+			show(el.threadel, msg.children[i])
 		}
 		parent.appendChild(el)
 	};
