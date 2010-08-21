@@ -1,16 +1,36 @@
 <div id="magic"></div>
 <script>
 var el = document.getElementById('magic');
-var v1 = '<div>hello world</div><div>wheeeeeeeeeeeeeee</div>';
-var v2 = '<div>hello world</div><div>po3rudjkjkk</div><div>wheeeeeeeeeeeeeee</div>'
+var v1 = '<div>hello world</div><div class="_dyn" name="test1">BLAHBLAH</div><div>wheeeeeeeeeeeeeee</div>';
+var v2 = '<div>hello poops</div><div class="_dyn" name="test1">EPIKPHAYLE</div><div>wheeeeeeeeeeeeeee</div>'
 
+/*
+	Idea:
+		Iterate through special elements.
+		Append to temporary container
+		Replace parent HTML
+		Iterate through special element references.
+		Replace nodes with references to the real elements
+	Dynamic Elements:
+		Inline Replies
+		Gadgets
+*/
 
-function diff(a, b){
-	var al = a.length, bl = b.length, shortest = Math.min(bl, al), i = 0, j = 0;
-	while(i < shortest && a[i] == b[i]) i++;
-	while(j < shortest - i && a[al-j] == b[bl-j]) j++;
-  return [i,al-j + 1,b.substring(i,bl-j+1)]
+el.innerHTML = v1;
+
+function change_dynamic(el, v2){
+	var tmp = document.createElement('div');
+	var name_map = {};
+	for(var els = el.getElementsByClassName('_dyn'), l = els.length; l--;){
+		name_map[els[l].getAttribute('name')] = els[l];
+		tmp.appendChild(els[l]);
+	
+	}
+	el.innerHTML = v2;
+	for(var els = el.getElementsByClassName('_dyn'), l = els.length; l--;){
+		els[l].parentNode.replaceChild(name_map[els[l].getAttribute('name')], els[l]);
+	}
 }
 
-console.log(diff(v1,v2))
+
 </script>
