@@ -16,7 +16,6 @@ function applyDelta(id, delta){
 			msg.acl[i] = msg.acl[i] || {};
 			for(var k in delta.acl[i])
 				msg.acl[i][k] = delta.acl[i][k];
-				
 		}
 	}
 	
@@ -53,13 +52,19 @@ function applyDelta(id, delta){
 	//console.log(msg.text)
 	
 	var ed = document.getElementById(id);
-	if(ed.editor.contentEditable == 'false')
-	 ed.editor.innerText = msg.text;
+	if(ed.editor.contentEditable == 'false'){
+	 //ed.editor.innerText = msg.text;
+		change_dynamic(ed.editor, msg.text, dynamic_renderer)
+	}
 	
-	var time = new Date;
-	time.setTime(msgs[id].time);
-	ed.header.innerText = id+' v'+msgs[id].v+' '+time.toString();
-	
+	ed.header.innerText = id+' v'+msgs[id].v+' '+format_time(msgs[id].time);
+}
+
+function format_time(ts){
+	var t = new Date;
+	t.setTime(ts);
+	if(t.toString().indexOf('Invalid') == 0) return t.toString();
+	return t.getMonth() + '/' + t.getDate() + ' ' + t.getHours() + ':' + t.getMinutes() + ':' + t.getSeconds();
 }
 
 function update(id,diff){
@@ -73,32 +78,46 @@ function update(id,diff){
 	console.log(xhr.responseText)
 }
 
-function add_child(id){
-	var xhr = new XMLHttpRequest();
-	xhr.open('POST','/',false);
-	xhr.send(JSON.stringify({
-		id: id,
-		v: msgs[id].v+1,
-		add_children: ['http://localhost:8124/'+Math.random().toString(36).substr(2,16)]
-	}));
-	console.log(xhr.responseText)
-}
 
+var hget = null;
+var listeners = {};
+var todo_listen = false;
+
+function listen_core(){
+	todo_listen = false;
+	if(hget){
+		hget.abort();
+	}else{
+		hget = new XMLHttpRequest();
+	}
+	var ql = {};
+	for(var url in listeners){
+		ql[url] = msgs[url].v;
+	}
+	hget.open('get', '/comet/?d='+encodeURIComponent(JSON.stringify(ql)), true);
+	hget.onload = function(){
+		var json = JSON.parse(hget.responseText);
+		applyDelta(json.id, json)
+		listen_core();
+	}
+	hget.send(null)
+}
 
 function listen(url, callback){
-	var xhr = new XMLHttpRequest();
-	xhr.open('get','/comet/?v='+(msgs[url].v)+'&url='+encodeURIComponent(url), true);
-	xhr.onreadystatechange = function(){
-		if(xhr.readyState == 4){
-			var json = JSON.parse(xhr.responseText);
-			console.log(json)
-			applyDelta(json.id, json)
-			listen(url, callback)
-		}
+	if(url || callback){
+		listeners[url] = callback || function(){};
+		todo_listen = true
 	}
-	xhr.send(null)
 }
-/* //awesome diff algorithm that i didnt make
+
+setInterval(function(){
+	if(todo_listen){
+		listen_core()
+	}
+},500)
+
+/* 
+//awesome diff algorithm that i didnt make
 function diff(a, b){	
   var al = a.length, bl = b.length, s = -1, e = -1;
 	var shortest = (b.length > a.length) ? a.length : b.length;
@@ -144,22 +163,16 @@ function loadMessage(id){
 	listen(id);
 }
 
-function parseHTML(html){
-	return html.replace(/<message>(.+)<\/message>/g, function(a, msgid){
-		
-	})
-}
 
-
-function change_dynamic(el, v2, handler){
+function change_dynamic(node, v2, handler){
 	var tmp = document.createElement('div');
 	var name_map = {};
-	for(var els = el.getElementsByClassName('_dyn'), l = els.length; l--;){
-		name_map[els[l].getAttribute('name')] = els[l];
-		tmp.appendChild(els[l]);
+	for(var el, els = node.getElementsByClassName('_dyn'); el = els[0];){
+		name_map[el.getAttribute('name')] = el;
+		tmp.appendChild(el);
 	}
-	el.innerHTML = v2;
-	for(var els = el.getElementsByClassName('_dyn'), l = els.length; l--;){
+	node.innerHTML = v2;
+	for(var els = node.getElementsByClassName('_dyn'), l = els.length; l--;){
 		var matching_el = name_map[els[l].getAttribute('name')];
 		if(matching_el){
 			els[l].parentNode.replaceChild(matching_el, els[l]);
@@ -176,11 +189,17 @@ function html_dynamic(el){
 	for(var els = el.getElementsByClassName('_dyn'), l = els.length; l--;){
 		html = html.replace(els[l].innerHTML, '')
 	}
-	return html;
+	return html.replace(/&nbsp;$/,' ');
 }
 
 function dynamic_renderer(el){
-	el.innerHTML = 'YAY POOP'
+	var tn = el.tagName.toLowerCase();
+	var en = el.getAttribute('name')
+	if(tn == 'message'){
+		el.appendChild(renderMsg(en))
+	}else{
+		el.innerHTML = 'YAY POOP'
+	}
 }
 
 
@@ -189,35 +208,82 @@ function renderMsg(id){
 		WARNING:
 		these closures are probably prone to memory leaks. FIX IT.
 	*/
+	if(!(id in msgs)) loadMessage(id);
+	
 	var d = document.createElement('div');
+	d.contentEditable = 'false';
+	
 	var t = document.createElement('div');
 	change_dynamic(t, msgs[id].text, dynamic_renderer);
 	
 	var hdr = document.createElement('span');
-	var time = new Date;
-	time.setTime(msgs[id].time);
-	hdr.innerText = id+' v'+msgs[id].v+' '+time.toString();
+	hdr.className = 'header'
+	
+	
+	hdr.innerText = id+' v'+msgs[id].v+' '+format_time(msgs[id].time);
 	d.header = hdr;
 	d.appendChild(hdr)
-	
+	d.editor = t;
 	
 	t.className = 'text'
 	
+	d.id = id;
+
+
+	var be = document.createElement('button');
+	be.onclick = function(){
+		if(t.contentEditable = t.contentEditable == 'false'){
+			be.innerText = 'Done'
+			t.focus();
+		}else{
+			be.innerText = 'Edit'
+		}
+	}
+	be.innerText = 'Edit'
+	d.appendChild(be)
+
+	var b = document.createElement('button');
+	b.onclick = function(){
+		var nid = 'http://localhost:8124/'+Math.random().toString(36).substr(2,3);
+							//obviously, 3 characters provides nowhere near enough entropy
+							//in a production environment.
+		var hd = html_dynamic(t);
+		var reg;
+		var msg = '<message class="_dyn" name="'+nid+'"></message>';
+		if(reg = /<\/thread>(<\/div>)?\s*$/.exec(hd)){
+			var hdl = hd.length - reg[0].length;
+			hd = hd.substr(0, hdl) + msg + hd.substr(hdl);
+			console.log('MAGGICK', hd)
+		}else{
+			hd += '<div class="thread"><thread>'+msg+'</thread></div>'
+		}
+		
+		change_dynamic(t, hd, dynamic_renderer);
+		t.contentEditable = true;
+		check_updates();
+		t.contentEditable = false;
+	}
+	b.innerText = 'Reply'
+	d.appendChild(b)
+	
+	/*
 	var t2 = document.createElement('div');
 	t2.innerText = msgs[id].text;
-	d.appendChild(t2)
-	
-	d.id = id;
 	d.editor = t2;
-	
+	t2.className = 't2_temp'
+	d.appendChild(t2)
+	//*/
 	var lasttext = '';
-	
-	setInterval(function(){
-		if(!t.parentNode || t.contentEditable == 'false') return false;
+	var check_updates = function(){
+		if(!t.parentNode || t.contentEditable == 'false'){
+			return setTimeout(check_updates, 100)
+		}
 		
 		var hd = html_dynamic(t)
 		
-		if(msgs[id].text == hd) return;
+		if(msgs[id].text == hd){
+			return setTimeout(check_updates, 100)
+		}
 		
 		var d = diff(msgs[id].text, hd) //TODO: something smarter
 		
@@ -225,31 +291,21 @@ function renderMsg(id){
 		
 		if(msgs[id].text != lasttext){
 			console.log('odd sync mismatch', lasttext, msgs[id].text)
+			setTimeout(check_updates, 4000)
+		}else{
+			setTimeout(check_updates, 100)
 		}
 		
 		lasttext = hd;
 		
-		update(id, d)
-	},100)
+		update(id, d);
+	};
 	
-	var b = document.createElement('button');
-	b.onclick = function(){
-		t.contentEditable = t.contentEditable == 'false';
-	}
-	b.innerText = 'Toggle Edit'
-	d.appendChild(b)
+	setTimeout(check_updates, 100);
 
-	var b = document.createElement('button');
-	b.onclick = function(){
-		add_child(id)
-	}
-	b.innerText = 'Reply'
-	d.appendChild(b)
-	
 	
 	d.appendChild(t)
 	d.className = 'message'
-	
 	
 	return d
 }
@@ -266,16 +322,35 @@ function render(id){
 </script>
 <style>
 	.text{
-		background-color: #f0f0f0;
-		min-height: 50px;
+		min-height: 30px;
 	}
 	
-	.text[contentEditable=true]{
-		background-color: #e0e0ff;
+	* {
+		font-family:  helvetica, sans-serif;
+		font-size: small;
+		
 	}
+	
+	
+	.header {
+		border-bottom: 1px solid #77dd77;
+	}
+	
+	.t2_temp {
+		font-family: monospace;
+		padding: 10px;
+	}
+	
+	.message {
+		border-top: 1px solid gray;
+	}
+	
+	
 	
 	.thread {
-		padding-left: 30px;
+		padding-left: 3px;
+		margin-top: 10px;
+		margin-left: 10px;
 		border-left: 3px solid #007fff;
 	}
 	

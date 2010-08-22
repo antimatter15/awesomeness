@@ -12,7 +12,6 @@ var msgs = {}; //partial IDs, excludes host
 var globalacl = {
 	write_acl: true,
 	write_elements: true,
-	add_children: true,
 	write_text: true
 };
 
@@ -78,11 +77,6 @@ function applyDelta(id, host, delta){
 				msg.elements[i][k] = delta.elements[i][k];
 		}
 	}
-	
-	//TODO: support Reordering	
-	if(can.add_children && delta.add_children)
-		msg.children = msg.children.concat(delta.add_children);
-
 	
 	//A *very* basic totally not working real OT that will have
 	//TONS OF COLLISIONS. DO NOT USE THIS IN ANYTHING OTHER THAN
@@ -187,8 +181,13 @@ http.createServer(function (req, res) {
 					json.v = msgs[json.id].v;
 					var op = JSON.stringify(json)
 					if(cl){
-						for(var i = cl.length;i--;)
+						for(var i = cl.length;i--;){
+							try{
 							cl[i].end(op); //get rid of it!
+							}catch(err){
+								console.log('socket already dead, i think')
+							}
+						}
 					}
 					comet_listeners[json.id] = [];
 				},function(){
@@ -218,19 +217,22 @@ http.createServer(function (req, res) {
 			sign.auth(req, res);
 		}else if(req.url.substr(0,6) == '/comet'){
 			var poop = url.parse(req.url, true);
-			var v = parseInt(poop.query.v,10);			
-			var p = poop.query.url;
+			var objs = JSON.parse(poop.query.d);
 			res.writeHead(200)
-			if(msgs[p] && v < msgs[p].v){
-				var j = JSON.parse(JSON.stringify(msgs[p].history[v+1]));
-				j.v = v+1;
-				j.__old = 'NOT STREAMING'
-				res.end(JSON.stringify(j));
-				return;
+			
+			for(var p in objs){
+				var v = parseInt(objs[p],10);;
+				if(msgs[p] && v < msgs[p].v){
+					var j = JSON.parse(JSON.stringify(msgs[p].history[v+1]));
+					j.v = v+1;
+					j.__old = 'NOT STREAMING'
+					res.end(JSON.stringify(j));
+					return;
+				}
+				console.log('new listener for req from ',url)
+				if(!comet_listeners[p]) comet_listeners[p] = [];
+				comet_listeners[p].push(res);				
 			}
-			console.log('new listener for req from ',url)
-			if(!comet_listeners[p]) comet_listeners[p] = [];
-			comet_listeners[p].push(res);
 		}else if(req.url.indexOf('/loadmsg') == 0){
 			var u = url.parse(req.url, true);
 			var opt = u.query;

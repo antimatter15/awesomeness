@@ -12,7 +12,6 @@ var msgs = {}; //partial IDs, excludes host
 var globalacl = {
 	write_acl: true,
 	write_elements: true,
-	add_children: true,
 	write_text: true
 };
 
@@ -85,10 +84,6 @@ function applyDelta(id, host, delta){
 		}
 	}
 	
-	//TODO: support Reordering	
-	if(can.add_children && delta.add_children)
-		msg.children = msg.children.concat(delta.add_children);
-
 	
 	//A *very* basic totally not working real OT that will have
 	//TONS OF COLLISIONS. DO NOT USE THIS IN ANYTHING OTHER THAN
