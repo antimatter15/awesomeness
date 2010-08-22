@@ -63,7 +63,7 @@ function applyDelta(id, delta){
 function format_time(ts){
 	var t = new Date;
 	t.setTime(ts);
-	if(t.toString().indexOf('Invalid') == 0) return t.toString();
+	if(t.toString().indexOf('Invalid') == 0) return 'Never';
 	return t.getMonth() + '/' + t.getDate() + ' ' + t.getHours() + ':' + t.getMinutes() + ':' + t.getSeconds();
 }
 
