@@ -231,7 +231,7 @@ function renderMsg(id){
 
 
 	var be = document.createElement('button');
-	be.onclick = function(){
+	var toggle_edit = function(){
 		if(t.contentEditable = t.contentEditable == 'false'){
 			be.innerText = 'Done'
 			t.focus();
@@ -239,15 +239,17 @@ function renderMsg(id){
 			be.innerText = 'Edit'
 		}
 	}
+	be.onclick = toggle_edit;
 	be.innerText = 'Edit'
 	d.appendChild(be)
-
+  var check_updates;
 	var b = document.createElement('button');
 	b.onclick = function(){
 		var nid = 'http://localhost:8124/'+Math.random().toString(36).substr(2,3);
 							//obviously, 3 characters provides nowhere near enough entropy
 							//in a production environment.
 		var hd = html_dynamic(t);
+
 		var reg;
 		var msg = '<message class="_dyn" name="'+nid+'"></message>';
 		if(reg = /<\/thread>(<\/div>)?\s*$/.exec(hd)){
@@ -257,11 +259,15 @@ function renderMsg(id){
 		}else{
 			hd += '<div class="thread"><thread>'+msg+'</thread></div>'
 		}
-		
+		console.log('replying stuff',hd);
 		change_dynamic(t, hd, dynamic_renderer);
-		t.contentEditable = true;
+		console.log(t.innerHTML)
+		var ostate = t.contentEditable;
+		t.contentEditable = 'true';
 		check_updates();
-		t.contentEditable = false;
+		setTimeout(function(){
+  		t.contentEditable = ostate;
+		},100);
 	}
 	b.innerText = 'Reply'
 	d.appendChild(b)
@@ -274,26 +280,27 @@ function renderMsg(id){
 	d.appendChild(t2)
 	//*/
 	var lasttext = '';
-	var check_updates = function(){
+	
+	
+	
+	check_updates = function(){
 		if(!t.parentNode || t.contentEditable == 'false'){
-			return setTimeout(check_updates, 100)
+			return 
 		}
 		
 		var hd = html_dynamic(t)
-		
 		if(msgs[id].text == hd){
-			return setTimeout(check_updates, 100)
+			return
 		}
 		
 		var d = diff(msgs[id].text, hd) //TODO: something smarter
 		
-		console.log('Loaded Version', msgs[id].v)
+		console.log('Loaded Version', id, msgs[id].v, 'diff', d)
 		
-		if(msgs[id].text != lasttext){
-			console.log('odd sync mismatch', lasttext, msgs[id].text)
-			setTimeout(check_updates, 4000)
-		}else{
-			setTimeout(check_updates, 100)
+		if(msgs[id].text != lasttext && lasttext != ''){
+  		lasttext = hd;
+			console.log('odd sync mismatch', lasttext, 'VERSUS', msgs[id].text)
+			return 'delay'
 		}
 		
 		lasttext = hd;
@@ -301,7 +308,17 @@ function renderMsg(id){
 		update(id, d);
 	};
 	
-	setTimeout(check_updates, 100);
+	var looper;
+	setTimeout(looper = function(){
+	  var res = check_updates();
+	  if(res == 'delay'){
+	    setTimeout(looper, 4000);
+	  }else{
+	    setTimeout(looper, 100);
+	  }
+	},100)
+	
+	
 
 	
 	d.appendChild(t)
