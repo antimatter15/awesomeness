@@ -7,26 +7,8 @@ var url = require('url'),
 sign.set_url('http://localhost:8125');
 sign.set_secret('laf324ojip3jgf4ilurkwoe82');
 
-var msgs = {}; //partial IDs, excludes host
-
-var globalacl = {
-	write_acl: true,
-	write_elements: true,
-	write_text: true
-};
-
-
 var msgs = {}; //Full IDs: host/message.
 
-
-function getACL(host, msg){
-	//Chain: HostSpecific > MessageDefault > GlobalServerDefault
-	var can = {};
-	for(var i in globalacl) can[i] = globalacl[i];
-	for(var i in msg.acl.def) can[i] = msg.acl.def[i];
-	for(var i in msg.acl[host]) can[i] = msg.acl[host][i];
-	return can
-}
 
 
 function applyDelta(id, host, delta){
@@ -36,7 +18,7 @@ function applyDelta(id, host, delta){
 			acl: {
 				def: {}
 			},
-			elements: {},
+			data: {},
 			v: 0,
 			subscribers: [],
 			children: [],
@@ -60,9 +42,7 @@ function applyDelta(id, host, delta){
 		throw 'version mismatch'
 	}
 	
-	var can = getACL(host, msg);
-
-	if(can.write_acl && delta.acl){
+	if(delta.acl){
 		for(var i in delta.acl){
 			msg.acl[i] = msg.acl[i] || {};
 			for(var k in delta.acl[i])
@@ -70,18 +50,18 @@ function applyDelta(id, host, delta){
 		}
 	}
 	
-	if(can.write_elements && delta.elements){
-		for(var i in delta.elements){
-			msg.elements[i] = msg.elements[i] || {};
-			for(var k in delta.elements[i])
-				msg.elements[i][k] = delta.elements[i][k];
+	if(delta.data){
+		for(var i in delta.data){
+			msg.data[i] = msg.data[i] || {};
+			for(var k in delta.data[i])
+				msg.data[i][k] = delta.data[i][k];
 		}
 	}
 	
 	//A *very* basic totally not working real OT that will have
 	//TONS OF COLLISIONS. DO NOT USE THIS IN ANYTHING OTHER THAN
 	//A PROTOTYPE!
-	if(can.write_text && delta.ot){
+	if(delta.ot){
 		for(var i = 0, l = delta.ot.length; i < l; i++){
 			var r = delta.ot[i]; //[14, 18, "gray"]
 			msg.text = msg.text.substr(0,r[0]) + r[2] + msg.text.substr(r[1]);
@@ -121,7 +101,6 @@ function getMessage(id, host, opt){
 		throw "Message Not Found"
 	}
 	var msg = msgs[id];
-	var can = getACL(host, msg);
 	var n = {
 		time: msg.time,
 		host: msg.host,

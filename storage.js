@@ -11,12 +11,9 @@ var msgs = {}; //partial IDs, excludes host
 
 var globalacl = {
 	write_acl: true,
-	write_elements: true,
+	write_data: true,
 	write_text: true
 };
-
-
-var msgs = {}; //Full IDs: host/message.
 
 
 function getACL(host, msg){
@@ -35,7 +32,7 @@ function createMessage(id){
 		acl: {
 			def: {}
 		},
-		elements: {},
+		data: {},
 		v: 0,
 		subscribers: [],
 		children: [],
@@ -76,11 +73,11 @@ function applyDelta(id, host, delta){
 		}
 	}
 	
-	if(can.write_elements && delta.elements){
-		for(var i in delta.elements){
-			msg.elements[i] = msg.elements[i] || {};
-			for(var k in delta.elements[i])
-				msg.elements[i][k] = delta.elements[i][k];
+	if(can.write_data && delta.data){
+		for(var i in delta.data){
+			msg.data[i] = msg.data[i] || {};
+			for(var k in delta.data[i])
+				msg.data[i][k] = delta.data[i][k];
 		}
 	}
 	
