@@ -208,7 +208,7 @@ http.createServer(function (req, res) {
 	}else if(req.method == 'GET'){
 		//webinterface is testing ONLY
 		if(req.url == '/' || req.url == ''){
-			fs.readFile('federation.html', function(err, data){
+			fs.readFile('client.html', function(err, data){
 				if(err) throw err;
 				res.writeHead(200,{'content-type': 'text/html'});
 				res.end(data)
