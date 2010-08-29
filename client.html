@@ -14,6 +14,8 @@ function registerRpc(service, handler) {
   });
 }
 
+var gadgetQueue = {};
+
 function initGadgetSystem() {
   // Once a gadget has called us back, we can inject the state/participants.
   var REMOTE_RPC_RELAY_URL =
@@ -25,9 +27,9 @@ function initGadgetSystem() {
     extractGadgetState(gadgetId);
   });
 
-  //registerRpc("resize_iframe", function(service, gadgetId, args) {
-  //  getEl(gadgetId).height = args[0]
-  //});
+  registerRpc("resize_iframe", function(service, gadgetId, args) {
+    document.getElementById(gadgetId).height = args[0]
+  });
 
   gadgets.rpc.registerDefault(function() {
     var eventType = this['s'];
@@ -36,18 +38,33 @@ function initGadgetSystem() {
     console.log(this);
     
     if(eventType == 'wave_gadget_state'){
-      console.log('updating state');
-      submitDelta(gadgetId.substr(6), eventObj);
-      //for(var i in eventObj){
-      //  gstates[gadgetId].state[i] = eventObj[i]; //apply the delta
-      //}
+      console.log('updating state', eventObj);
+      
+      if(!gadgetQueue[gadgetId])gadgetQueue[gadgetId]={};
+      
+      
+      for(var i in eventObj){
+        gadgetQueue[gadgetId][i] = eventObj[i]; //apply the delta
+      }
       //wave.blip.update_element(eventObj, gstates[gadgetId].blipId, current_wave, current_wavelet);
       //runQueue();
       
     }
     console.log(eventType,eventObj);
   });
+
+  setInterval(function(){
+    for(var gadgetId in gadgetQueue){
+      var c = 0;for(var i in gadgetQueue[gadgetId]) c++;
+      if(c > 0){
+        submitDelta(gadgetId.substr(6), gadgetQueue[gadgetId]);
+      }
+      delete gadgetQueue[gadgetId];
+    }    
+  },100);
+
 }
+
 
 setTimeout(initGadgetSystem, 1000);
 
