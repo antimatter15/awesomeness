@@ -1,11 +1,21 @@
+<script src="/Socket.IO-node/example/client/socket.io.js"></script>
+
 <script>
+io.setPath('/Socket.IO-node/example/client/');
+
+var socket = new io.Socket(null, {port: 8125}); //todo: get the port from location
+socket.connect();
+socket.on('message', function(obj){
+  applyDelta(obj.id, obj)
+});
+
 var msgs = {};
 function applyDelta(id, delta){
 	if(!(id in msgs)){
 			loadMessage(id)
 	}
 		
-	console.log('got delta',delta)
+	//console.log('got delta',delta)
 	
 	var msg = msgs[id];
 	
@@ -19,11 +29,11 @@ function applyDelta(id, delta){
 		}
 	}
 	
-	if(delta.elements){
-		for(var i in delta.elements){
-			msg.elements[i] = msg.elements[i] || {};
-			for(var k in delta.elements[i])
-				msg.elements[i][k] = delta.elements[i][k];
+	if(delta.data){
+		for(var i in delta.data){
+			msg.data[i] = msg.data[i] || {};
+			for(var k in delta.data[i])
+				msg.data[i][k] = delta.data[i][k];
 		}
 	}
 	
@@ -67,54 +77,23 @@ function format_time(ts){
 	return t.getMonth() + '/' + t.getDate() + ' ' + t.getHours() + ':' + t.getMinutes() + ':' + t.getSeconds();
 }
 
-function update(id,diff){
-	var xhr = new XMLHttpRequest();
-	xhr.open('POST','/',false);
-	xhr.send(JSON.stringify({
-		id: id,
-		v: msgs[id].v+1,
-		ot: [diff]
-	}));
-	console.log(xhr.responseText)
+function update(id, diff){
+	socket.send({
+	  op: {
+	    id: id,
+	    v: msgs[id].v+1,
+  		ot: [diff]
+	  }
+	})
 }
 
 
-var hget = null;
-var listeners = {};
-var todo_listen = false;
-
-function listen_core(){
-	todo_listen = false;
-	if(hget){
-		hget.abort();
-	}else{
-		hget = new XMLHttpRequest();
-	}
-	var ql = {};
-	for(var url in listeners){
-		ql[url] = msgs[url].v;
-	}
-	hget.open('get', '/comet/?d='+encodeURIComponent(JSON.stringify(ql)), true);
-	hget.onload = function(){
-		var json = JSON.parse(hget.responseText);
-		applyDelta(json.id, json)
-		listen_core();
-	}
-	hget.send(null)
+function listen(url){
+	socket.send({
+	  add: url
+  })
 }
 
-function listen(url, callback){
-	if(url || callback){
-		listeners[url] = callback || function(){};
-		todo_listen = true
-	}
-}
-
-setInterval(function(){
-	if(todo_listen){
-		listen_core()
-	}
-},500)
 
 /* 
 //awesome diff algorithm that i didnt make

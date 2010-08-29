@@ -1,6 +1,7 @@
 //Storage
 var url = require('url'),
 		fs = require('fs'),
+		io = require('./Socket.IO-node/'),
 		sign = require('./communication'),
 	  http = require('http');
 
@@ -138,10 +139,8 @@ function loadMessage(id, callback, opt){
 }
 
 
-var comet_listeners = {};
-
-
-http.createServer(function (req, res) {
+var server = http.createServer(function (req, res) {
+  var path = url.parse(req.url).pathname;
 	if(req.method == 'POST'){
 		var chunks = '';
 		req.on('data', function(chunk){
@@ -155,63 +154,22 @@ http.createServer(function (req, res) {
 					console.log('applying delta for ',json.id)
 					applyDelta(json.id, req.headers.host, json)
 					res.end();
-					console.log('push kame frum',json.id)
-					var cl = comet_listeners[json.id];
 					json.v = msgs[json.id].v;
-					var op = JSON.stringify(json)
-					if(cl){
-						for(var i = cl.length;i--;){
-							try{
-							cl[i].end(op); //get rid of it!
-							}catch(err){
-								console.log('socket already dead, i think')
-							}
-						}
-					}
-					comet_listeners[json.id] = [];
+					push_updates(json)
 				},function(){
 					console.log('failed signature');
 					res.writeHead(503);
 					res.end('FAILED SIGNATURE')
-				})
-			}else{
-				var json = JSON.parse(chunks);
-				json.subscribe = true;
-				//hmmm. subscriptions. hmm.
-				res.writeHead(200,{})
-				sign.POST(json.id, JSON.stringify(json), function(stuff){
-					res.end(stuff)
 				})
 			}
 		})
 	}else if(req.method == 'GET'){
 		//webinterface is testing ONLY
 		if(req.url == '/' || req.url == ''){
-			fs.readFile('client.html', function(err, data){
-				if(err) throw err;
-				res.writeHead(200,{'content-type': 'text/html'});
-				res.end(data)
-			})
+			res.writeHead(301,{'content-type': 'text/html','location': '/client.html'});
+			res.end()
 		}else if(req.url == '/auth'){
 			sign.auth(req, res);
-		}else if(req.url.substr(0,6) == '/comet'){
-			var poop = url.parse(req.url, true);
-			var objs = JSON.parse(poop.query.d);
-			res.writeHead(200)
-			
-			for(var p in objs){
-				var v = parseInt(objs[p],10);;
-				if(msgs[p] && v < msgs[p].v){
-					var j = JSON.parse(JSON.stringify(msgs[p].history[v+1]));
-					j.v = v+1;
-					j.__old = 'NOT STREAMING'
-					res.end(JSON.stringify(j));
-					return;
-				}
-				console.log('new listener for req from ',url)
-				if(!comet_listeners[p]) comet_listeners[p] = [];
-				comet_listeners[p].push(res);				
-			}
 		}else if(req.url.indexOf('/loadmsg') == 0){
 			var u = url.parse(req.url, true);
 			var opt = u.query;
@@ -220,11 +178,77 @@ http.createServer(function (req, res) {
 				console.log('WHOOOOOTTTT',JSON.stringify(data))
 				res.end(JSON.stringify(data))
 			})
+		}else if (/\.(js|html|swf)$/.test(path)){
+			try {
+				var swf = path.substr(-4) === '.swf';
+				res.writeHead(200, {'Content-Type': swf ? 'application/x-shockwave-flash' : ('text/' + (path.substr(-3) === '.js' ? 'javascript' : 'html'))});
+				fs.readFile(__dirname + path, swf ? 'binary' : 'utf8', function(err, data){
+					if (!err) res.write(data, swf ? 'binary' : 'utf8');
+					res.end();
+				});
+			} catch(e){ 
+				res.writeHead(404);
+	      res.write('404');
+	      res.end();
+			}
+		}else{
+		  res.writeHead(404);
+	    res.write('404');
+	    res.end();
 		}
 	}
-	
-}).listen(8125, "127.0.0.1");
+});
 
-
-
+server.listen(8125, "127.0.0.1");
 console.log('Server running at http://127.0.0.1:8125/');
+
+
+function push_updates(json){
+	for(var i = 0; i < listeners[json.id].length; i++){
+	  var client = sock.clientsIndex[listeners[json.id][i]];
+	  if(client){
+	    console.log('sending an update to the client')
+	    client.send(json)
+	  }
+	}
+}
+
+// socket.io, I choose you
+io.listen(server);
+
+// socket.io, I choose you
+// simplest chat application evar
+var sock = io.listen(server);
+
+var listeners = {};
+
+sock.on('connection', function(client){
+	var subscriptions = [];
+  console.log('new client connection',client.sessionId);
+	client.on('message', function(message){
+	//console.log(message)
+		if(message.op){
+		  var json = message.op;
+			json.subscribe = true;
+			//hmmm. subscriptions. hmm.
+			sign.POST(json.id, JSON.stringify(json), function(stuff){
+				//do i do anything with this. naaah
+				//console.log('got the data back')
+				//console.log(stuff);
+			})
+		}else if(message.add){
+		  listeners[message.add] = listeners[message.add] || [];
+		  listeners[message.add].push(client.sessionId);
+		  subscriptions.push(message.add);
+		}else if(message.remove){
+      listeners[message.remove].splice(listeners[message.remove].indexOf(client.sessionId), 1);
+      subscriptions.splice(subscriptions.indexOf(message.remove));
+    }
+	});
+
+	client.on('disconnect', function(){
+		for(var i = 0; i < subscriptions.length; i++){
+		  listeners[subscriptions[i]].splice(listeners[subscriptions[i]].indexOf(client.sessionId),1);
+		}
+	});
+});
