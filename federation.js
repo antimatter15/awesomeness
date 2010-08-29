@@ -214,9 +214,6 @@ function push_updates(json){
 }
 
 // socket.io, I choose you
-io.listen(server);
-
-// socket.io, I choose you
 // simplest chat application evar
 var sock = io.listen(server);
 
