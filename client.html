@@ -223,7 +223,7 @@ function renderMsg(id){
     //slider.max = msgs[id].v
     //slider.value = msgs[id].v;
 	  if(t.contentEditable == 'false'){
-		  change_dynamic(t, msg.text, dynamic_renderer)
+		  change_dynamic(t, msgs[id].text, dynamic_renderer)
 	  }
 	  hdr.innerText = id+' v'+msgs[id].v+' '+format_time(msgs[id].time);
   }
