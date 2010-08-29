@@ -12,7 +12,8 @@ var msgs = {}; //Full IDs: host/message.
 
 
 
-function applyDelta(id, host, delta){
+function applyDelta(delta){
+  var id = delta.id;
 	if(!(id in msgs)){
 		msgs[id] = {
 			history: [], //a list of all operations, 0 -> v
@@ -26,8 +27,6 @@ function applyDelta(id, host, delta){
 			text: ''
 		}
 	}
-	
-	delta.host = host; //dont trust the info supplied by the fed server completely
 	
 	var msg = msgs[id];
 	
@@ -52,16 +51,19 @@ function applyDelta(id, host, delta){
 	}
 	
 	if(delta.data){
-		for(var i in delta.data){
-			msg.data[i] = msg.data[i] || {};
-			for(var k in delta.data[i])
-				msg.data[i][k] = delta.data[i][k];
-		}
+	  (function(real, obj){
+	    for(var i in obj){
+	      if(typeof obj[i] == 'object'){
+	        if(!real[i]) real[i] = {};
+	        arguments.callee(real[i], obj[i])
+	      }else{
+	        real[i] = obj[i];
+	      }
+	    }
+	  })(msg.data, delta.data)
 	}
 	
-	//A *very* basic totally not working real OT that will have
-	//TONS OF COLLISIONS. DO NOT USE THIS IN ANYTHING OTHER THAN
-	//A PROTOTYPE!
+	//A *very* basic PROTOTYPE!
 	if(delta.ot){
 		for(var i = 0, l = delta.ot.length; i < l; i++){
 			var r = delta.ot[i]; //[14, 18, "gray"]
@@ -111,6 +113,7 @@ function getMessage(id, host, opt){
 	};
 	
 	n.acl = msg.acl;
+	n.data = msg.data;
 	n.text = msg.text;
 	
 	if(opt.history)
@@ -152,7 +155,7 @@ var server = http.createServer(function (req, res) {
 					res.writeHead(200)
 					var json = JSON.parse(chunks);
 					console.log('applying delta for ',json.id)
-					applyDelta(json.id, req.headers.host, json)
+					applyDelta(json)
 					res.end();
 					json.v = msgs[json.id].v;
 					push_updates(json)

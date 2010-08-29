@@ -130,6 +130,7 @@ function getMessage(id, host, opt){
 	};
 	
 	n.acl = msg.acl;
+	n.data = msg.data; //todo: ACLS!
 	n.text = msg.text;
 	
 	if(opt.history)
