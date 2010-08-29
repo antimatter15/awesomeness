@@ -228,28 +228,53 @@ function renderMsg(id){
 							//obviously, 3 characters provides nowhere near enough entropy
 							//in a production environment.
 		var hd = html_dynamic(t);
-
 		var reg;
 		var msg = '<message class="_dyn" name="'+nid+'"></message>';
-		if(reg = /<\/thread>(<\/div>)?\s*$/.exec(hd)){
-			var hdl = hd.length - reg[0].length;
-			hd = hd.substr(0, hdl) + msg + hd.substr(hdl);
-			console.log('MAGGICK', hd)
-		}else{
-			hd += '<div class="thread"><thread>'+msg+'</thread></div>'
-		}
+
+		hd += '<div class="thread"><thread>'+msg+'</thread></div>'
 		console.log('replying stuff',hd);
 		change_dynamic(t, hd, dynamic_renderer);
 		console.log(t.innerHTML)
-		var ostate = t.contentEditable;
 		t.contentEditable = 'true';
 		check_updates();
 		setTimeout(function(){
-  		t.contentEditable = ostate;
+  		t.contentEditable = 'false';
 		},100);
 	}
 	b.innerText = 'Reply'
 	d.appendChild(b)
+	
+	
+	var c = document.createElement('button');
+	c.onclick = function(){
+		var nid = 'http://localhost:8124/'+Math.random().toString(36).substr(2,3);
+							//obviously, 3 characters provides nowhere near enough entropy
+							//in a production environment.
+							
+	  var thread = d.parentNode.parentNode;
+	  var msg = document.createElement('message');
+	  msg.className = '_dyn';
+	  msg.setAttribute('name', nid);
+	  thread.appendChild(msg);
+	  dynamic_renderer(msg);
+	  
+	  
+	  var pm = thread.parentNode;
+	  while(pm.className != 'message'){
+	    pm = pm.parentNode;
+	  }
+	  
+		pm.editor.contentEditable = 'true';
+		pm.check_updates();
+		setTimeout(function(){
+  		pm.editor.contentEditable = false;
+		},100);
+	}
+	c.innerText = 'Continue'
+	
+	
+	d.appendChild(c)
+	
 	
 	/*
 	var t2 = document.createElement('div');
@@ -262,7 +287,8 @@ function renderMsg(id){
 	
 	
 	
-	check_updates = function(){
+	d.check_updates = check_updates = function(){
+	
 		if(!t.parentNode || t.contentEditable == 'false'){
 			return 
 		}
@@ -272,19 +298,26 @@ function renderMsg(id){
 			return
 		}
 		
-		var d = diff(msgs[id].text, hd) //TODO: something smarter
+		var delta = diff(msgs[id].text, hd) //TODO: something smarter
 		
-		console.log('Loaded Version', id, msgs[id].v, 'diff', d)
-		
+		console.log('Loaded Version', id, msgs[id].v, 'diff', delta)
+
+
+	 window.Z = d;
+	 
+	 
+	 
 		if(msgs[id].text != lasttext && lasttext != ''){
   		lasttext = hd;
 			console.log('odd sync mismatch', lasttext, 'VERSUS', msgs[id].text)
+			loadMessage(id)
+			
 			return 'delay'
 		}
 		
 		lasttext = hd;
 		
-		update(id, d);
+		update(id, delta);
 	};
 	
 	var looper;
