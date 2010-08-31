@@ -51,6 +51,10 @@
 	background-image:-webkit-gradient(linear, left top, left bottom, from(rgb(170,170,170)), to(rgb(229,229,229)));
 }
 
+.toolbar button:last-child {
+  margin-right: 0;
+}
+
 .toolbox {
   float: right;
 }
