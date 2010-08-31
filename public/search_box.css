@@ -1,0 +1,27 @@
+.wave-searchbox {
+	
+	height:24px;
+	padding-left:13px;
+	padding-right:25px;
+	
+	border-style:solid;
+	border-width:1px;
+	border-right-color:#C3C3C3;
+	border-bottom-color:#C3C3C3;
+	border-left-color:#A7A7A7;
+	border-top-color:#A7A7A7;
+	        border-radius:12px;
+	   -moz-border-radius:12px;
+	-webkit-border-radius:12px;
+	
+	        box-shadow:inset 2px 3px 2px 0px rgba(0,0,0,0.1), 1px 1px 0px 0px white;
+	   -moz-box-shadow:inset 2px 3px 2px 0px rgba(0,0,0,0.1), 1px 1px 0px 0px white;
+	-webkit-box-shadow:inset 2px 3px 2px 0px rgba(0,0,0,0.1), 1px 1px 0px 0px white;
+	
+	background-color:white;
+	color:black;
+}
+.wave-searchbox:focus {
+	border-width:2px;
+	border-color:green;
+}

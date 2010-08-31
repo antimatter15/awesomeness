@@ -2,6 +2,7 @@
 <link rel="stylesheet" href="ui.css">
 <link rel="stylesheet" href="main.css">
 <link rel="stylesheet" href="reply_edit_del.css">
+<link rel="stylesheet" href="search_box.css">
 
 
 <script src="/Socket.IO/socket.io.js"></script>
@@ -24,7 +25,7 @@
 	  </button><button onclick="document.execCommand('superscript',false)">super</button>
   </div>
 <form onsubmit="var v=this.root.value;setTimeout(function(){render(v)},0);return false" style="margin:0;padding:0">
-  <input type='text' name='root' value='http://localhost:8124/supertestparent' style="width:500px" autofocus>
+  <input type='text' class="wave-searchbox" name='root' value='http://localhost:8124/supertestparent' style="width:500px" autofocus>
   <button type='submit'>Go</button>
 
 </form>
