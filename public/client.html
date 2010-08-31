@@ -1,4 +1,4 @@
-<script src="/Socket.IO-node/example/client/socket.io.js"></script>
+<script src="/Socket.IO/socket.io.js"></script>
 <script src="https://wave.google.com/gadgets/js/core:rpc?debug=1&c=1"></script>
 <button onclick="inlineReply()">Create Inline Reply</button>
 <button onclick="addGadget()">Add Gadget</button>
@@ -566,46 +566,8 @@ function render(id){
 }
 
 </script>
-<style>
-	.text{
-		min-height: 30px;
-	}
-	
-	* {
-		font-family:  helvetica, sans-serif;
-		font-size: small;
-		
-	}
-	
-	
-	.header {
-		border-bottom: 1px solid #77dd77;
-	}
-	
-	.t2_temp {
-		font-family: monospace;
-		padding: 10px;
-	}
-	
-	.message {
-		border-top: 1px solid gray;
-	}
-	
-	.gadget {
-	  border: 1px solid lightblue;
-	  padding: 3px;
-	  border-radius: 10px;
-	}
-	
-	
-	.thread {
-		padding-left: 3px;
-		margin-top: 10px;
-		margin-left: 10px;
-		border-left: 3px solid #007fff;
-	}
-	
-</style>
+<link rel="stylesheet" href="ui.css">
+<link rel="stylesheet" href="main.css">
 <form onsubmit="var v=this.root.value;setTimeout(function(){render(v)},0);return false">
 	<input type='text' name='root' value='http://localhost:8124/supertestparent' style="width:500px" autofocus>
 </form>

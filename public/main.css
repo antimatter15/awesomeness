@@ -1,0 +1,38 @@
+.text{
+	min-height: 30px;
+}
+
+* {
+	font-family:  helvetica, sans-serif;
+	font-size: small;
+	
+}
+
+
+.header {
+	border-bottom: 1px solid #77dd77;
+}
+
+.t2_temp {
+	font-family: monospace;
+	padding: 10px;
+}
+
+.message {
+	border-top: 1px solid gray;
+}
+
+.gadget {
+  border: 1px solid lightblue;
+  padding: 3px;
+  border-radius: 10px;
+}
+
+
+.thread {
+	padding-left: 3px;
+	margin-top: 10px;
+	margin-left: 10px;
+	border-left: 3px solid #007fff;
+}
+

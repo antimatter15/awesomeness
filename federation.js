@@ -181,11 +181,11 @@ var server = http.createServer(function (req, res) {
 				console.log('WHOOOOOTTTT',JSON.stringify(data))
 				res.end(JSON.stringify(data))
 			})
-		}else if (/\.(js|html|swf)$/.test(path)){
+		}else if (/\.(js|html|swf|css)$/.test(path)){
 			try {
 				var swf = path.substr(-4) === '.swf';
 				res.writeHead(200, {'Content-Type': swf ? 'application/x-shockwave-flash' : ('text/' + (path.substr(-3) === '.js' ? 'javascript' : 'html'))});
-				fs.readFile(__dirname + path, swf ? 'binary' : 'utf8', function(err, data){
+				fs.readFile(__dirname + '/public/' + path, swf ? 'binary' : 'utf8', function(err, data){
 					if (!err) res.write(data, swf ? 'binary' : 'utf8');
 					res.end();
 				});
