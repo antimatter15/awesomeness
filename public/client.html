@@ -8,18 +8,27 @@
 <script src="delta.js"></script>
 <script src="messages.js"></script>
 <script src="gadgets.js"></script>
-
-
-<form onsubmit="var v=this.root.value;setTimeout(function(){render(v)},0);return false">
+<div class="wave-titlebar">please fork me on <a href='http://github.com/antimatter15/awesomeness' style='color:white'>github.</a></div>
+<div class="wave-section-blue">
+  <div style="float:right" class="toolbar">
+	  <button onclick="inlineReply()">Inline Reply
+	  </button><button onclick="addGadget()">Gadget
+	  </button><button onclick="insertOL()">1.</button><button onclick="insertUL()">&bull; a
+	  </button><button onclick="document.execCommand('bold',false)"><b>b</b>
+	  </button><button onclick="document.execCommand('italic',false)"><i>i</i>
+	  </button><button onclick="document.execCommand('underline',false)"><u>u</u>
+	  </button><button onclick="document.execCommand('strikeThrough',false)"><s>s</s>
+	  </button><button onclick="document.execCommand('subscript',false)">sub
+	  </button><button onclick="document.execCommand('superscript',false)">super</button>
+  </div>
+<form onsubmit="var v=this.root.value;setTimeout(function(){render(v)},0);return false" style="margin:0;padding:0">
   <input type='text' name='root' value='http://localhost:8124/supertestparent' style="width:500px" autofocus>
   <button type='submit'>Go</button>
-</form>
 
-<div class="wave-panel">
+</form>
+</div>
+
+
 <div id="main" class="wave-section">
 </div>
-<div class="wave-section-blue">
-	<button onclick="inlineReply()">Create Inline Reply</button>
-  <button onclick="addGadget()">Add Gadget</button>
-</div>
-</div>
+

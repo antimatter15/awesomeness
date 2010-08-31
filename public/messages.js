@@ -1,3 +1,24 @@
+document.execCommand('useCSS',false,true);
+
+onkeydown = function(e){
+  if(e.keyCode == 9){
+    document.execCommand('indent',false)
+    return false;
+  }
+}
+
+function insertHTML(html){
+  var parent = document.createElement('div');
+  parent.innerHTML = html;
+  document.getSelection().getRangeAt(0).insertNode(parent.firstChild)
+}
+function insertOL(){
+  insertHTML('<ol><li>List Item One</li></ol>')
+}
+function insertUL(){
+  insertHTML('<ul><li>First Bullet</li></ul>')
+}
+
 
 function inlineReply(){
 	var nid = 'http://localhost:8124/m'+Math.random().toString(36).substr(2,3);
@@ -27,10 +48,11 @@ function renderMsg(id){
 	d.contentEditable = 'false';
 	
 	var t = document.createElement('div');
+	
 	change_dynamic(t, msgs[id].text, dynamic_renderer);
 	
-	var hdr = document.createElement('span');
-	hdr.className = 'header'
+	var hdr = document.createElement('div');
+	hdr.className = 'header wave-titlebar'
 	
 	
 	hdr.innerText = id+' v'+msgs[id].v+' '+format_time(msgs[id].time);
@@ -38,7 +60,7 @@ function renderMsg(id){
 	d.appendChild(hdr)
 	d.editor = t;
 	
-	t.className = 'text'
+	t.className = 'text wave-section'
 	
 	d.id = id;
 
@@ -66,7 +88,7 @@ function renderMsg(id){
 	var be = document.createElement('button');
 	var toggle_edit = function(){
 		if(t.contentEditable = t.contentEditable == 'false'){
-			be.innerText = 'Done'
+			be.innerHTML = '<b>Done</b>'
 			t.focus();
 		}else{
 			be.innerText = 'Edit'
@@ -187,10 +209,11 @@ function renderMsg(id){
 	
 	
 
-	
-	d.appendChild(t)
 	toolbox.className = 'toolbox'
+
+	
 	d.appendChild(toolbox);
+	d.appendChild(t)
 	d.className = 'message'
 	
 	return d

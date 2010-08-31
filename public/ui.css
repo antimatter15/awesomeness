@@ -74,6 +74,9 @@ button:active {
 	
 	overflow:hidden;
 }
+
+
+
 .wave-titlebar {
 	background-image:-moz-linear-gradient(top, rgb(96,164,238), rgb(85,144,210));
 	background-image:-webkit-gradient(linear, left top, left bottom, color-stop(0, rgb(96,164,238)), color-stop(1, rgb(85,144,210)));
