@@ -1,0 +1,44 @@
+.toolbox {
+	border-style:solid;
+	border-width:1px;
+	border-color:#A4B0C0;
+	border-radius:3px;
+	-moz-border-radius:3px;
+	-webkit-border-radius:3px;
+	
+	        box-shadow:4px 4px 8px rgba(0,0,0,0.3);
+	   -moz-box-shadow:4px 4px 8px rgba(0,0,0,0.3);
+	-webkit-box-shadow:4px 4px 8px rgba(0,0,0,0.3);
+	
+	background-color:#F1F6FC;
+	background:-moz-linear-gradient(top, #FAFBFD, #FAFBFD, #FAFBFD, #FAFBFD, #FAFBFD, #ECF1F8, #ECF1F8, #ECF1F8, #ECF1F8);
+	/* there is probably a better way to do this in FF, but I am too lazy to learn most -moz- things that are different from -webkit- :P*/
+	background:-webkit-gradient(linear, 0% 52%, 0% 53%, from(#FAFBFD), to(#ECF1F8));
+	
+	display:inline-block;
+	
+	padding-left:4px;
+	padding-right:4px;
+	padding-top:2px;
+	padding-bottom:-1px;
+	margin-right:2px;
+	
+	opacity:0.25;
+	transition-property:opacity;
+	transition-duration:0.25s;
+	transition-timing-function:ease-in-out;
+	-o-transition-property:opacity;
+	-o-transition-duration:0.25s;
+	-o-transition-timing-function:ease-in-out;
+	-moz-transition-property:opacity;
+	-moz-transition-duration:0.25s;
+	-moz-transition-timing-function:ease-in-out;
+	-webkit-transition-property:opacity;
+	-webkit-transition-duration:0.25s;
+	-webkit-transition-timing-function:ease-in-out;
+	
+	cursor:default;
+}
+.toolbox:hover {
+	opacity:1;
+}
