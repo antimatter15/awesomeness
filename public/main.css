@@ -9,13 +9,13 @@
 }
 
 
-.header {
-	border-bottom: 1px solid #77dd77;
+.toolbox {
+  float: right;
+  margin-top: -24px;
 }
 
-.t2_temp {
-	font-family: monospace;
-	padding: 10px;
+.header {
+	border-bottom: 1px solid #77dd77;
 }
 
 .message {
