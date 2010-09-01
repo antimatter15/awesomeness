@@ -87,13 +87,22 @@ function renderMsg(id){
 
 	var be = document.createElement('button');
 	var toggle_edit = function(){
-		if(t.contentEditable = t.contentEditable == 'false'){
-			be.innerHTML = '<b>Done</b>'
-			t.focus();
-		}else{
-			be.innerText = 'Edit'
-		}
+		set_editable(t.contentEditable != 'false')
 	}
+	
+	var set_editable = function(mode){
+	  if(mode){
+  		t.contentEditable = 'false';
+	    be.innerText = 'Edit'
+			d.className = 'message'
+	  }else{
+  		t.contentEditable = 'true';
+	    be.innerHTML = '<b>Done</b>'
+			t.focus();
+			d.className = 'message edit'
+	  }
+	}
+	
 	be.onclick = toggle_edit;
 	be.innerText = 'Edit'
 	toolbox.appendChild(be)
@@ -114,7 +123,7 @@ function renderMsg(id){
 		t.contentEditable = 'true';
 		check_updates();
 		setTimeout(function(){
-  		t.contentEditable = 'false';
+  		set_editable(false);
 		},100);
 	}
 	b.innerText = 'Reply'
