@@ -24,11 +24,9 @@ function inlineReply(){
 	var nid = 'http://localhost:8124/m'+Math.random().toString(36).substr(2,3);
 						//obviously, 3 characters provides nowhere near enough entropy
 						//in a production environment
-	var threadcont = document.createElement('div');
-	threadcont.className = 'thread';
+	
   var thread = document.createElement('thread');
-  threadcont.appendChild(thread);
-  document.getSelection().getRangeAt(0).insertNode(threadcont);
+  document.getSelection().getRangeAt(0).insertNode(thread);
   var msg = document.createElement('message');
   msg.setAttribute('name', nid);
   thread.appendChild(msg);
@@ -119,7 +117,7 @@ function renderMsg(id){
 		var reg;
 		var msg = '<message name="'+nid+'"></message>';
 
-		hd += '<div class="thread"><thread>'+msg+'</thread></div>'
+		hd += '<thread>'+msg+'</thread>'
 		console.log('replying stuff',hd);
 		change_dynamic(t, hd, dynamic_renderer);
 		console.log(t.innerHTML)
@@ -233,6 +231,10 @@ function renderMsg(id){
 
 
 function change_dynamic(node, v2, handler){
+  //console.log(v2);
+  v2 = v2.replace(/<thread>/g, '<div class="thread">');
+  v2 = v2.replace(/<\/thread>/g, '</div>');
+  //console.log(v2)
 	var tmp = document.createElement('div');
 	var els = node.querySelectorAll('message,gadget');
 	var name_map = {};
@@ -248,7 +250,7 @@ function change_dynamic(node, v2, handler){
 		if(matching_el){
 			els[l].parentNode.replaceChild(matching_el, els[l]);
 		}else{
-		  console.log('SUPER NEW BLAH BLAH');
+		  //console.log('SUPER NEW BLAH BLAH');
 			handler(els[l]);
 		}
 	}
@@ -259,6 +261,9 @@ function change_dynamic(node, v2, handler){
 function html_dynamic(el){
   var els = el.querySelectorAll('message,gadget');
 	var html = el.innerHTML;
+	//console.log(html);
+	html = html.replace(/<div class="thread">(.*?)<\/div>/gi, '<thread>$1</thread>');
+	//console.log(html);
 	for(var l = els.length; l--;){
 		html = html.replace(els[l].innerHTML, '')
 	}

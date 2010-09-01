@@ -80,16 +80,11 @@
 }
 
 
-.thread {
+thread, .thread {
 	padding-left: 3px;
 	margin-top: 10px;
 	margin-left: 10px;
 	
-	/*border-left: 3px solid #007fff;*/
-}
-
-
-.thread {
 	font-family:Arial, sans-serif;
 	font-size:10pt;
 	
