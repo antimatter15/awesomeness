@@ -38,14 +38,13 @@
 	   -moz-box-shadow:none;
 	-webkit-box-shadow:none;
   display: inline;
-  min-width: 30px;
   padding: 5px;
   margin-top: 0;
   margin-bottom: 0;
   margin-left: 0px;
   margin-right: 1px;
-  padding-right: 10px;
-  padding-left: 10px;
+  padding-right: 7px;
+  padding-left: 7px;
   
 	        border-radius:0px;
 	   -moz-border-radius:0px;
