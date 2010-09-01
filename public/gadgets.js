@@ -18,7 +18,6 @@ function addGadget(){
 						//obviously, 3 characters provides nowhere near enough entropy
 						//in a production environment
   var msg = document.createElement('gadget');
-  msg.className = '_dyn';
   msg.setAttribute('name', nid);
   dynamic_renderer(msg);
   document.getSelection().getRangeAt(0).insertNode(msg);

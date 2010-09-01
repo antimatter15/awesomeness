@@ -30,7 +30,6 @@ function inlineReply(){
   threadcont.appendChild(thread);
   document.getSelection().getRangeAt(0).insertNode(threadcont);
   var msg = document.createElement('message');
-  msg.className = '_dyn';
   msg.setAttribute('name', nid);
   thread.appendChild(msg);
   dynamic_renderer(msg);
@@ -53,6 +52,10 @@ function renderMsg(id){
 	
 	var hdr = document.createElement('div');
 	hdr.className = 'header wave-titlebar'
+	
+	hdr.ondblclick = function(){
+	  hdr.innerText = msgs[id].text;
+	}
 	
 	
 	hdr.innerText = id+' v'+msgs[id].v+' '+format_time(msgs[id].time);
@@ -114,7 +117,7 @@ function renderMsg(id){
 							//in a production environment.
 		var hd = html_dynamic(t);
 		var reg;
-		var msg = '<message class="_dyn" name="'+nid+'"></message>';
+		var msg = '<message name="'+nid+'"></message>';
 
 		hd += '<div class="thread"><thread>'+msg+'</thread></div>'
 		console.log('replying stuff',hd);
@@ -138,7 +141,6 @@ function renderMsg(id){
 							
 	  var thread = d.parentNode.parentNode;
 	  var msg = document.createElement('message');
-	  msg.className = '_dyn';
 	  msg.setAttribute('name', nid);
 	  thread.appendChild(msg);
 	  dynamic_renderer(msg);
@@ -232,17 +234,21 @@ function renderMsg(id){
 
 function change_dynamic(node, v2, handler){
 	var tmp = document.createElement('div');
+	var els = node.querySelectorAll('message,gadget');
 	var name_map = {};
-	for(var el, els = node.getElementsByClassName('_dyn'); el = els[0];){
+	for(var el; el = els[0];){
 		name_map[el.getAttribute('name')] = el;
 		tmp.appendChild(el);
 	}
 	node.innerHTML = v2;
-	for(var els = node.getElementsByClassName('_dyn'), l = els.length; l--;){
+	var els = node.querySelectorAll('message,gadget');
+	
+	for(var l = els.length; l--;){
 		var matching_el = name_map[els[l].getAttribute('name')];
 		if(matching_el){
 			els[l].parentNode.replaceChild(matching_el, els[l]);
 		}else{
+		  console.log('SUPER NEW BLAH BLAH');
 			handler(els[l]);
 		}
 	}
@@ -251,8 +257,9 @@ function change_dynamic(node, v2, handler){
 
 
 function html_dynamic(el){
+  var els = el.querySelectorAll('message,gadget');
 	var html = el.innerHTML;
-	for(var els = el.getElementsByClassName('_dyn'), l = els.length; l--;){
+	for(var l = els.length; l--;){
 		html = html.replace(els[l].innerHTML, '')
 	}
 	return html.replace(/&nbsp;$/,' ');

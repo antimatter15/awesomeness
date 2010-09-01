@@ -9,7 +9,7 @@
 	
 }
 
-.message.edit .wave-titlebar {
+.message.edit > .wave-titlebar {
 	background-image:-moz-linear-gradient(top, rgb(96,238,164), rgb(85,210,144)) !important;
 	background-image:-webkit-gradient(linear, left top, left bottom, color-stop(0, rgb(96,238,164)), color-stop(1, rgb(85,210,144))) !important;
 	border-top-color:rgb(134, 237, 183) !important;
