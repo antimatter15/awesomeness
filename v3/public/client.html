@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+<head>
+<title>Version Three</title>
+</head>
+<body>
+
+<script src="/Socket.IO/socket.io.js"></script>
+<script>
+io.setPath('/Socket.IO/');
+
+var socket = new io.Socket(null, {port: 8124}); //todo: get the port from location
+socket.connect();
+socket.on('message', function(obj){
+  console.log(obj);
+});
+
+function send(obj){
+  socket.send(JSON.stringify(obj));
+}
+
+</script>
+</body>
+</html>
