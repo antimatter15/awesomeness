@@ -1,10 +1,16 @@
+var url = require('url'),
+		fs = require('fs'),
+	  http = require('http');
+
+
+
 //////////////CONFIGURATION//////////////////
 
 
-var server = url.parse('localhost:8125');
+var server = url.parse('http://localhost:8125/');
 var users = {
   'admin': {
-    password: 'admin'
+    password: 'password'
   }
 }
 
@@ -13,10 +19,8 @@ var users = {
 //////////////CONFIGURATION//////////////////
 
 var tokens = {};
+var msgs = {};
 
-var url = require('url'),
-		fs = require('fs'),
-	  http = require('http');
 
 
 function b64_decode(str){
@@ -100,6 +104,7 @@ function applyDelta(id, delta, host, user){
 	if(!(id in msgs)){
 		createMessage(id)
 	}
+	var msg = msgs[id];
 	var can = getACL(msg, host, user);
 
 	
@@ -107,7 +112,6 @@ function applyDelta(id, delta, host, user){
 	delta.user = user || delta.user;
 	//delta SHOULD contain a user attribute!
 	
-	var msg = msgs[id];
 	
 	if(msg.subscribers.indexOf(host) == -1) msg.subscribers.push(host);
 		
@@ -168,6 +172,7 @@ var listener = http.createServer(function (req, res) {
 		var json = JSON.parse(chunks);
 		
 		//the JSON.id is the magical part
+		console.log(json);
 		var target = url.parse(json.id); //this tells if the request is local or external
 		var targetlocal = target.host == server.host;
 		
@@ -228,7 +233,7 @@ var listener = http.createServer(function (req, res) {
         
         if(json.type == 'sub'){
           //subscribe to ID
-        
+
         }else if(json.type == 'load'){
           //load latest version of thing
           res.writeHead(200);
@@ -258,7 +263,9 @@ var listener = http.createServer(function (req, res) {
         }else if(json.type == 'write'){
           if(targetlocal){
             //target is local. go apply the delta.
-            
+            applyDelta(json.id, json, server.host, user);            
+            res.writeHead(200);
+            res.end('{}');
           }else{
             //target is not local. go proxy request to the target server
             
@@ -307,7 +314,7 @@ var listener = http.createServer(function (req, res) {
             if(json.type == 'load'){
               //load latest version of thing
               res.writeHead(200);
-              res.end(JSON.stringify(getMessage(json.id, host)); //usually ops dont actually return data. right?
+              res.end(JSON.stringify(getMessage(json.id, host))); //usually ops dont actually return data. right?
             }else if(json.type == 'write'){
               applyDelta(json.id, json, host, json.user);
               res.writeHead(200);
@@ -333,6 +340,5 @@ var listener = http.createServer(function (req, res) {
 	  }
 	})
 });
-
-listener.listen(server.port, server.hostname);
+listener.listen(parseInt(server.port), server.hostname);
 console.log('Server running at http://'+server.host);
