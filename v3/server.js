@@ -63,6 +63,7 @@ function getACL(msg, host, user){
 
 
 function createMessage(id){
+  if(specialMessage(id)) return; //special messages can not be created or destroyed
   if(!(id in msgs)){
 	  msgs[id] = {
 		  history: [], //a list of all operations, 0 -> v
@@ -76,7 +77,6 @@ function createMessage(id){
 	  }
 	}
 }
-
 
 function subscribe(id, host){
 	var msg = msgs[id];
@@ -109,9 +109,12 @@ function getMessage(id, host, user){
 }
 
 function applyDelta(id, delta, host, user){
-
+  var idurl = url.parse(id);
+  
 	
 	var msg = msgs[id];
+
+
 	var can = getACL(msg, host, user);
 
 	
@@ -167,6 +170,8 @@ function applyDelta(id, delta, host, user){
 			msg.text = msg.text.substr(0,r[0]) + r[2] + msg.text.substr(r[1]);
 			changed = true;
 		}
+		
+		//list all the referenced messages and try loading them preemptivvely
 	}
 	
 	msg.time = +new Date;
