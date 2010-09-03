@@ -76,14 +76,20 @@ function createMessage(id){
 }
 
 
+function subscribe(host){
+	var msg = msgs[id];
+	var can = getACL(msg, host);
+	if(host != server.host && can.read)
+  	if(msg.subscribers.indexOf(host) == -1) msg.subscribers.push(host);
+}
+
 function getMessage(id, host, user){
 	if(!(id in msgs)) throw "Message Not Found";
 	
 	var msg = msgs[id];
 	var can = getACL(msg, host, user);
 	
-	if(msg.subscribers.indexOf(host) == -1) msg.subscribers.push(host);
-	
+  subscribe(host);
 	
 	if(can.read){
 	  var n = {
@@ -112,13 +118,12 @@ function applyDelta(id, delta, host, user){
 	delta.user = user || delta.user;
 	//delta SHOULD contain a user attribute!
 	
-	
-	if(msg.subscribers.indexOf(host) == -1) msg.subscribers.push(host);
-		
+  subscribe(host);
+  
 	if(delta.v != msg.v + 1){
 		//version mismatch. FAIL
-		console.log('version mismatch Expected:'+(msg.v+1)+' Got:'+delta.v)
-		throw 'version mismatch Expected:'+(msg.v+1)+' Got:'+delta.v
+		console.log('Version mismatch Expected:'+(msg.v+1)+' Got:'+delta.v)
+		throw 'Version mismatch Expected:'+(msg.v+1)+' Got:'+delta.v
 	}
 	
 
@@ -155,6 +160,15 @@ function applyDelta(id, delta, host, user){
 	msg.v++; //increment version
 	msg.history[msg.v] = delta;
 	
+	for(var i = msg.subscribers.length; i--;){
+	  var subscriber = url.parse('http://'+msg.subscribers[i]);
+	  var client = http.createClient(subscriber.port, subscriber.hostname);
+    var request = client.request('POST', '/push', {
+      'host': server.host,
+      'authorization': 'TFV3 TODO_IMPLEMENT_TOKEN_HANDLING'
+    }); 
+    request.end(JSON.stringify(delta));
+  }
 }
 
 
@@ -166,9 +180,6 @@ var listener = http.createServer(function (req, res) {
   
 	var chunks = ''; req.on('data', function(chunk){chunks += chunk});
 	req.on('end', function(){
-
-              
-              
 		var json = JSON.parse(chunks);
 		
 		//the JSON.id is the magical part
@@ -215,6 +226,7 @@ var listener = http.createServer(function (req, res) {
 		
 		//First step. Determine if it's from a user or from another server.
 		
+    var host = req.headers.host;
 	  var auth = req.headers.authorization;
 	  var authtype = auth.substr(0, auth.indexOf(' '));
 	  var authstr = auth.substr(authtype.length+1);
@@ -231,10 +243,7 @@ var listener = http.createServer(function (req, res) {
         
         json.user = user; //set the username of the person submitting the request.
         
-        if(json.type == 'sub'){
-          //subscribe to ID
-
-        }else if(json.type == 'load'){
+        if(json.type == 'load'){
           //load latest version of thing
           res.writeHead(200);
           if(!targetlocal && !(json.id in msgs)){
@@ -253,22 +262,26 @@ var listener = http.createServer(function (req, res) {
                 var msg = JSON.parse(all);
                 if(msg){
                   msgs[json.id] = msg;
+                  subscribe(host); //the requesting proxy server should also recieve updates
                 }
                 res.end(JSON.stringify(getMessage(json.id, host, user)));
               })
             });
           }else{
+            subscribe(host); //the requesting proxy server should also recieve updates
             res.end(JSON.stringify(getMessage(json.id, host, user)));
           }
         }else if(json.type == 'write'){
+
           if(targetlocal){
             //target is local. go apply the delta.
             applyDelta(json.id, json, server.host, user);            
+            subscribe(host); //the requesting proxy server should also recieve updates
             res.writeHead(200);
             res.end('{}');
-          }else{
+          }else{ //TODO: potential issue with subscribing without loading first.
             //target is not local. go proxy request to the target server
-            
+            subscribe(host); //the requesting proxy server should also recieve updates
             var client = http.createClient(target.port, target.hostname);
             var request = client.request('POST', '/', {
               'host': server.host,
@@ -304,7 +317,6 @@ var listener = http.createServer(function (req, res) {
 
 	    //these use a magical little thingy.
 	    
-	    var host = req.headers.host;
 	    var check_token = function(){
         if(tokens[host] == authstr || true){ //TODO: IMPLEMENT TOKEN HANDLING
           console.log('host authentication for '+host+' has succeeded');
