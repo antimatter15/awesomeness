@@ -15,7 +15,7 @@ var server = http.createServer(function (req, res) {
 		req.on('end', function(){
 			if(req.url == '/push'){
 				res.writeHead(200)
-			  push_updates(JSON.parse(chunks));
+			  push_updates(chunks);
 			}
 		})
 	}else if(req.method == 'GET'){
@@ -88,7 +88,8 @@ sock.on('connection', function(client){
 			var target = url.parse(message.id);
 			var hclient = http.createClient(target.port, target.hostname);
       var request = hclient.request('POST', '/', {
-        'authorization': 'Basic '+b64_encode('admin:password')
+        'authorization': 'Basic '+b64_encode('admin:password'),
+        'host': 'localhost:8124'
       }); 
       request.end(JSON.stringify(json));
       request.on('response', function(response){

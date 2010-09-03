@@ -63,20 +63,22 @@ function getACL(msg, host, user){
 
 
 function createMessage(id){
-	msgs[id] = {
-		history: [], //a list of all operations, 0 -> v
-		acl: {
-			def: {}
-		},
-		data: {},
-		v: 0,
-		subscribers: [],
-		text: ''
+  if(!(id in msgs)){
+	  msgs[id] = {
+		  history: [], //a list of all operations, 0 -> v
+		  acl: {
+			  def: {}
+		  },
+		  data: {},
+		  v: 0,
+		  subscribers: [],
+		  text: ''
+	  }
 	}
 }
 
 
-function subscribe(host){
+function subscribe(id, host){
 	var msg = msgs[id];
 	var can = getACL(msg, host);
 	if(host != server.host && can.read)
@@ -89,7 +91,7 @@ function getMessage(id, host, user){
 	var msg = msgs[id];
 	var can = getACL(msg, host, user);
 	
-  subscribe(host);
+  subscribe(id, host);
 	
 	if(can.read){
 	  var n = {
@@ -107,9 +109,8 @@ function getMessage(id, host, user){
 }
 
 function applyDelta(id, delta, host, user){
-	if(!(id in msgs)){
-		createMessage(id)
-	}
+
+	
 	var msg = msgs[id];
 	var can = getACL(msg, host, user);
 
@@ -118,7 +119,7 @@ function applyDelta(id, delta, host, user){
 	delta.user = user || delta.user;
 	//delta SHOULD contain a user attribute!
 	
-  subscribe(host);
+  subscribe(id, host);
   
 	if(delta.v != msg.v + 1){
 		//version mismatch. FAIL
@@ -129,19 +130,31 @@ function applyDelta(id, delta, host, user){
 
 
 	if(can.write_acl && delta.acl){
-		for(var i in delta.acl){
-			msg.acl[i] = msg.acl[i] || {};
-			for(var k in delta.acl[i])
-				msg.acl[i][k] = delta.acl[i][k];
-		}
+		var looper = function(d, o){
+		  for(var i in d){
+			  if(typeof d[i] != 'object'){
+			    o[i] = d[i];
+			  }else{
+			    if(!o[i]) o[i] = {};
+			    looper(d[i], o[i]);
+		    }
+		  }
+		};
+		looper(delta.acl, msg.acl)
 	}
 	
 	if(can.write_data && delta.data){
-		for(var i in delta.data){
-			msg.data[i] = msg.data[i] || {};
-			for(var k in delta.data[i])
-				msg.data[i][k] = delta.data[i][k];
-		}
+		var looper = function(d, o){
+		  for(var i in d){
+			  if(typeof d[i] != 'object'){
+			    o[i] = d[i];
+			  }else{
+			    if(!o[i]) o[i] = {};
+			    looper(d[i], o[i]);
+		    }
+		  }
+		};
+		looper(delta.data, msg.data)
 	}
 	
 	
@@ -162,12 +175,14 @@ function applyDelta(id, delta, host, user){
 	
 	for(var i = msg.subscribers.length; i--;){
 	  var subscriber = url.parse('http://'+msg.subscribers[i]);
+	  console.log(subscriber);
 	  var client = http.createClient(subscriber.port, subscriber.hostname);
     var request = client.request('POST', '/push', {
       'host': server.host,
       'authorization': 'TFV3 TODO_IMPLEMENT_TOKEN_HANDLING'
     }); 
-    request.end(JSON.stringify(delta));
+    request.end(JSON.stringify(delta)); //TODO: cache stringified delta
+    console.log(JSON.stringify(delta));
   }
 }
 
@@ -235,7 +250,7 @@ var listener = http.createServer(function (req, res) {
 	    //users use HTTP BASIC AUTH
 	    var authdata = b64_decode(authstr).split(':');
 	    var user = authdata[0], pass = authdata[1];
-	    
+	    //TODO: better way to dish out updates
 	    if(users[user].password == pass){
         console.log('user authentication for '+user+' has succeeded');	    
         //YAY NOW WE CAN ACTUALLY DO STUFF!!!!!!
@@ -262,26 +277,27 @@ var listener = http.createServer(function (req, res) {
                 var msg = JSON.parse(all);
                 if(msg){
                   msgs[json.id] = msg;
-                  subscribe(host); //the requesting proxy server should also recieve updates
+                  subscribe(json.id, host); //the requesting proxy server should also recieve updates
                 }
                 res.end(JSON.stringify(getMessage(json.id, host, user)));
               })
             });
           }else{
-            subscribe(host); //the requesting proxy server should also recieve updates
+            subscribe(json.id, host); //the requesting proxy server should also recieve updates
             res.end(JSON.stringify(getMessage(json.id, host, user)));
           }
         }else if(json.type == 'write'){
-
+          delete json.type;
           if(targetlocal){
             //target is local. go apply the delta.
+          	createMessage(json.id); //TODO: allow ACL to restrict creation of new messages to outsiders
+            subscribe(json.id, host); //the requesting proxy server should also recieve updates
             applyDelta(json.id, json, server.host, user);            
-            subscribe(host); //the requesting proxy server should also recieve updates
             res.writeHead(200);
             res.end('{}');
           }else{ //TODO: potential issue with subscribing without loading first.
             //target is not local. go proxy request to the target server
-            subscribe(host); //the requesting proxy server should also recieve updates
+            subscribe(json.id, host); //the requesting proxy server should also recieve updates
             var client = http.createClient(target.port, target.hostname);
             var request = client.request('POST', '/', {
               'host': server.host,
@@ -328,6 +344,8 @@ var listener = http.createServer(function (req, res) {
               res.writeHead(200);
               res.end(JSON.stringify(getMessage(json.id, host))); //usually ops dont actually return data. right?
             }else if(json.type == 'write'){
+              delete json.type;
+            	createMessage(json.id);
               applyDelta(json.id, json, host, json.user);
               res.writeHead(200);
               res.end('{}'); //usually ops dont actually return data. right?
