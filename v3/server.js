@@ -1,3 +1,7 @@
+//////////////CONFIGURATION//////////////////
+var serverpath = 'http://localhost:8125/'; //remember trailing slash
+
+//////////////CONFIGURATION//////////////////
 var url = require('url'),
 		fs = require('fs'),
 	  http = require('http');
@@ -8,7 +12,7 @@ var tokens = {};
 var server = url.parse(serverpath);
 //////////////CONFIGURATION//////////////////
 
-var serverpath = 'http://localhost:8125/'; //remember trailing slash
+
 addUser('admin', 'password');
 
 
@@ -41,7 +45,7 @@ var globalacl = {
 	write_data: true,
 	write_text: true
 };
-
+/*
 function createPrivateMessage(id, user){
   createMessage(id, true);
   msgs[id].acl.def.read = false;
@@ -54,7 +58,7 @@ function createPrivateMessage(id, user){
     write_text: true
   }
 }
-
+*/
 
 function getACL(msg, host, user){
 	//Chain: User > Host > Message > Server
@@ -84,6 +88,7 @@ function createMessageCore(id){
     },
     data: {},
     v: 0,
+    clients: [], //another class of subscribers
     subscribers: [],
     text: ''
   }
@@ -131,6 +136,14 @@ function subscribe(id, host){
 	  var can = getACL(msg, host);
 	  if(host != server.host && can.read)
     	if(msg.subscribers.indexOf(host) == -1) msg.subscribers.push(host);
+	}
+}
+
+
+function subscribeClient(id, URL){
+	var msg = msgs[id];
+	if(msg){
+	  if(msg.clients.indexOf(host) == -1) msg.clients.push(host);
 	}
 }
 
@@ -209,6 +222,12 @@ function applyDelta(id, delta, host, user){
 		looper(delta.data, msg.data)
 	}
 	
+	var children = [];
+	//TODO: switch to regex match/cache regex
+	msg.text.replace(/<message\s+name=['"]?(.*)['"]?\s*>/gi, function(all, url){
+    //possibility of changing from "name" to something snazzier, like URL
+    children.push(url);
+  })
 	
 	//A *very* basic totally not working real OT that will have
 	//TONS OF COLLISIONS. DO NOT USE THIS IN ANYTHING OTHER THAN
@@ -222,6 +241,22 @@ function applyDelta(id, delta, host, user){
 		
 		//list all the referenced messages and try loading them preemptivvely
 	}
+	
+	//TODO: switch to regex match/cache regex
+	msg.text.replace(/<message\s+name=['"]?(.*)['"]?\s*>/gi, function(all, url){
+    //possibility of changing from "name" to something snazzier, like URL
+    children.push(url);
+    if(children.indexOf(url) == -1){
+      //added new child
+      children.splice(children.indexOf(url), 1); //remove from childrens list
+    }
+  });
+  if(children.length > 0){
+    for(var i = children.length; i--;){
+      children[i] //this child was REMOVED
+    }
+  }
+	
 	
 	msg.time = +new Date;
 	msg.v++; //increment version
@@ -246,6 +281,16 @@ function applyDelta(id, delta, host, user){
     }); 
     request.end(JSON.stringify(delta)); //TODO: cache stringified delta
     console.log(JSON.stringify(delta));
+  }
+  
+  //same thing for this type of situation. different for the recursive thingsies.
+	for(var i = msg.clients.length; i--;){
+	  var subscriber = url.parse('http://'+msg.clients[i]); //TODO: https
+	  console.log(subscriber);
+	  //TODO: deal with revoked permissions
+	  var client = http.createClient(subscriber.port, subscriber.hostname);
+    var request = client.request('POST', subscriber.pathname); 
+    request.end(JSON.stringify(delta)); //TODO: cache stringified delta
   }
 }
 
