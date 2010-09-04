@@ -2,26 +2,27 @@ var url = require('url'),
 		fs = require('fs'),
 	  http = require('http');
 
-
-
-//////////////CONFIGURATION//////////////////
-
-
-var server = url.parse('http://localhost:8125/');
-var users = {
-  'admin': {
-    password: 'password'
-  }
-}
-
-
-
-//////////////CONFIGURATION//////////////////
-
-var tokens = {};
+var users = {}
 var msgs = {};
+var tokens = {};
+var server = url.parse(serverpath);
+//////////////CONFIGURATION//////////////////
+
+var serverpath = 'http://localhost:8125/'; //remember trailing slash
+addUser('admin', 'password');
 
 
+
+//////////////CONFIGURATION//////////////////
+
+
+function addUser(username, password){
+  users[username] = {
+    password: password
+  };
+  
+  //createPrivateMessage(serverpath+'u/'+username+'/search_query', username);
+}
 
 function b64_decode(str){
   return (new Buffer(str, 'base64')).toString('utf-8');
@@ -40,6 +41,19 @@ var globalacl = {
 	write_data: true,
 	write_text: true
 };
+
+function createPrivateMessage(id, user){
+  createMessage(id, true);
+  msgs[id].acl.def.read = false;
+  msgs[id].acl.def.write_data = false;
+  msgs[id].acl.def.write_text = false;
+  msgs[id].acl[server.host] = {};
+  msgs[id].acl[server.host][user] = {
+    read: true,
+    write_data: true,
+    write_text: true
+  }
+}
 
 
 function getACL(msg, host, user){
@@ -62,27 +76,62 @@ function getACL(msg, host, user){
 }
 
 
-function createMessage(id){
-  if(specialMessage(id)) return; //special messages can not be created or destroyed
-  if(!(id in msgs)){
-	  msgs[id] = {
-		  history: [], //a list of all operations, 0 -> v
-		  acl: {
-			  def: {}
-		  },
-		  data: {},
-		  v: 0,
-		  subscribers: [],
-		  text: ''
-	  }
-	}
+function createMessageCore(id){
+  msgs[id] = {
+    history: [], //a list of all operations, 0 -> v
+    acl: {
+      def: {}
+    },
+    data: {},
+    v: 0,
+    subscribers: [],
+    text: ''
+  }
 }
+
+function createMessage(id, user){
+  if(!(id in msgs)){
+    if(url.parse(id).pathname.substr(0,3) == '/m/'){
+      createMessageCore(id);
+	  }else if(url.parse(id).pathname.indexOf('/u/'+user) == 0){
+	    //this is a search query.
+      createMessageCore(id);
+      msgs[id].acl.def.read = false;
+      msgs[id].acl.def.write_data = false;
+      msgs[id].acl.def.write_text = false;
+      msgs[id].acl[server.host] = {};
+      msgs[id].acl[server.host][user] = {
+        read: true,
+        write_data: true,
+        write_text: true
+      }
+	  }
+  }
+}
+
+function searchMessages(query, user){
+  var qregex = new RegExp(query.replace(/ /g, '.*'), 'gim');
+  var matches = [];
+  //TODO: one day, use something other than an O(1) search
+  for(var id in msgs){
+    if(qregex.test(msgs[id].text)){
+      var can = getACL(msgs[id], server.host, user);
+      if(can.read){
+        matches.push(id);
+      }
+    }
+  }
+  return matches;
+}
+
 
 function subscribe(id, host){
 	var msg = msgs[id];
-	var can = getACL(msg, host);
-	if(host != server.host && can.read)
-  	if(msg.subscribers.indexOf(host) == -1) msg.subscribers.push(host);
+	if(msg){
+	  var can = getACL(msg, host);
+	  if(host != server.host && can.read)
+    	if(msg.subscribers.indexOf(host) == -1) msg.subscribers.push(host);
+	}
 }
 
 function getMessage(id, host, user){
@@ -178,9 +227,18 @@ function applyDelta(id, delta, host, user){
 	msg.v++; //increment version
 	msg.history[msg.v] = delta;
 	
+	var upath = serverpath+'u/', upl = upath.length;
+	for(var i in msgs){
+	  if(i.indexOf(upath) == 0){
+	    i.substr(upl);
+	  }
+	}
+	
+	
 	for(var i = msg.subscribers.length; i--;){
-	  var subscriber = url.parse('http://'+msg.subscribers[i]);
+	  var subscriber = url.parse('http://'+msg.subscribers[i]); //TODO: https
 	  console.log(subscriber);
+	  //TODO: deal with revoked permissions
 	  var client = http.createClient(subscriber.port, subscriber.hostname);
     var request = client.request('POST', '/push', {
       'host': server.host,
@@ -288,6 +346,9 @@ var listener = http.createServer(function (req, res) {
               })
             });
           }else{
+            if(targetlocal){
+              createMessage(json.id, user);
+            }
             subscribe(json.id, host); //the requesting proxy server should also recieve updates
             res.end(JSON.stringify(getMessage(json.id, host, user)));
           }
@@ -295,7 +356,7 @@ var listener = http.createServer(function (req, res) {
           delete json.type;
           if(targetlocal){
             //target is local. go apply the delta.
-          	createMessage(json.id); //TODO: allow ACL to restrict creation of new messages to outsiders
+          	createMessage(json.id, user); //TODO: allow ACL to restrict creation of new messages to outsiders
             subscribe(json.id, host); //the requesting proxy server should also recieve updates
             applyDelta(json.id, json, server.host, user);            
             res.writeHead(200);
@@ -328,7 +389,6 @@ var listener = http.createServer(function (req, res) {
       }else{
         console.log('user authentication for '+user+' has failed');
       }
-	    
 	  }
 	  
 	  if(authtype == 'TFV3'){ //five random characters. Actually, its something like token failure 3
