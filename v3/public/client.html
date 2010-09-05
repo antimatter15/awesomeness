@@ -96,11 +96,16 @@ function applyDelta(id, delta){
 	msg.time = delta.time;
 	
 	msg.v++; //increment version
+	
+	if(!msg.history) msg.history = [];
+	
 	msg.history[msg.v] = delta;
 
 
 	var ed = document.getElementById(id);
-	ed.update()
+	if(ed){
+	  ed.update();
+	}
 }
 
 

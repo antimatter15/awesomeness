@@ -29,9 +29,6 @@ var server = http.createServer(function (req, res) {
 		if(req.url == '/' || req.url == ''){
 			res.writeHead(301,{'content-type': 'text/html','location': '/client.html'});
 			res.end()
-		}else if(req.url == '/auth'){
-
-			
 		}else if (/\.(js|html|swf|css)$/.test(path)){
 			try {
 				var swf = path.substr(-4) === '.swf';
