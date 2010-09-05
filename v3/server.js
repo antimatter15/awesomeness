@@ -280,6 +280,7 @@ function applyDelta(id, delta, host, user){
 	
 	msg.time = ctime;
 	msg.ctime = ctime; //we know this is the newest. now.
+	delta.time = ctime;
 	
 	msg.v++; //increment version
 	msg.history[msg.v] = delta;

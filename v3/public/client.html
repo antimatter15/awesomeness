@@ -19,7 +19,110 @@ function send(obj){
   socket.send(JSON.stringify(obj));
 }
 
+var msgs = {};
 
+function applyDelta(id, delta){
+	var msg = msgs[id];
+
+	delta.host = host; //dont trust the info supplied by the fed server completely
+	delta.user = user || delta.user;
+	//delta SHOULD contain a user attribute!
+	
+  subscribe(id, host);
+  
+	if(delta.v != msg.v + 1){
+		//version mismatch. FAIL
+		console.log('Version mismatch Expected:'+(msg.v+1)+' Got:'+delta.v)
+		throw 'Version mismatch Expected:'+(msg.v+1)+' Got:'+delta.v
+	}
+	
+
+	if(delta.acl){
+		var looper = function(d, o){
+		  for(var i in d){
+			  if(typeof d[i] != 'object'){
+			    o[i] = d[i];
+			  }else{
+			    if(!o[i]) o[i] = {};
+			    looper(d[i], o[i]);
+		    }
+		  }
+		};
+		looper(delta.acl, msg.acl)
+	}
+	
+	if(delta.data){
+		var looper = function(d, o){
+		  for(var i in d){
+			  if(typeof d[i] != 'object'){
+			    o[i] = d[i];
+			  }else{
+			    if(!o[i]) o[i] = {};
+			    looper(d[i], o[i]);
+		    }
+		  }
+		};
+		looper(delta.data, msg.data)
+	}
+	
+
+	
+	//A *very* basic totally not working real OT that will have
+	//TONS OF COLLISIONS. DO NOT USE THIS IN ANYTHING OTHER THAN
+	//A PROTOTYPE!
+	if(delta.ot){
+		for(var i = 0, l = delta.ot.length; i < l; i++){
+			var r = delta.ot[i]; //[14, 18, "gray"]
+			msg.text = msg.text.substr(0,r[0]) + r[2] + msg.text.substr(r[1]);
+			changed = true;
+		}
+		
+		//list all the referenced messages and try loading them preemptivvely
+	}
+	
+
+	msg.time = delta.time;
+	
+	msg.v++; //increment version
+	msg.history[msg.v] = delta;
+
+
+	var ed = document.getElementById(id);
+	ed.update()
+}
+
+
+function renderMessage(id){
+  var msg = msgs[id]; //get a ref to the msg
+  if(!msg) throw "Message isn't loaded yet";
+  var type = msg.data.type; //the type of message.
+  /*
+    Digest
+    User
+    Text
+    Root
+  */
+  
+  var el = document.createElement('div');
+  //TODO: fix mem leaks from closures
+
+  
+  if(type == 'digest'){
+    el.update = function(){
+      var results = [];
+      if(msg.data.items){
+        for(var i in msg.data.items){
+          results.push(i);
+        }
+      }
+      results.sort(function(a, b){
+        return msgs[a].ctime - msgs[b].ctime;
+      })
+    }
+    el.update();
+  }
+  
+}
 
 </script>
 </body>
