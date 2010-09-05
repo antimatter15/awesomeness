@@ -19,7 +19,18 @@ function send(obj){
   socket.send(JSON.stringify(obj));
 }
 
+function loadMessage(id){
+  send({id: id, op: {type: 'load'}})
+}
+
+function pushMessage(id){
+  send({id: id, op: {type: 'write'}})
+}
+
 var msgs = {};
+
+//send({id: 'http://localhost:8125/u/admin/inbox', op: {type: 'load'}})
+
 
 function applyDelta(id, delta){
 	var msg = msgs[id];
@@ -104,6 +115,7 @@ function renderMessage(id){
   */
   
   var el = document.createElement('div');
+  el.id = id;
   //TODO: fix mem leaks from closures
 
   
@@ -115,15 +127,24 @@ function renderMessage(id){
           results.push(i);
         }
       }
-      results.sort(function(a, b){
+      console.log(results.sort(function(a, b){
         return msgs[a].ctime - msgs[b].ctime;
-      })
+      }));
     }
     el.update();
+  }else if(type == 'text'){
+    el.update = function(){
+    }
+    
   }
   
+  return el;
 }
 
+startup = function(){
+  //send({id: 'http://localhost:8125/u/admin/inbox', op: {type: 'write', v: 1, data: {test: 'meow'}}})
+  document.body.appendChild(renderMesage(id));
+}
 </script>
 </body>
 </html>

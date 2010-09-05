@@ -101,6 +101,7 @@ function createMessageCore(id){
     },
     data: {},
     v: 0,
+    parents: [],
     clients: [], //another class of subscribers
     subscribers: [],
     ctime: 0, //this is the last time of the last edit of the message or the children. whichever is newer.
@@ -318,7 +319,7 @@ function pushDelta(group, delta){
   var strdelta = JSON.stringify(delta);
   
 	for(var i = group.length; i--;){
-	  var subscriber = url.parse('http://'+msg.subscribers[i]); //TODO: https
+	  var subscriber = url.parse(group[i]); //TODO: https
 	  console.log(subscriber);
 	  //TODO: deal with revoked permissions
 	  var client = http.createClient(subscriber.port, subscriber.hostname);
@@ -434,7 +435,7 @@ var listener = http.createServer(function (req, res) {
               createMessage(json.id, user);
             }
             subscribeClient(json.id, req.headers.subscribe);
-            res.end(JSON.stringify(getMessage(json.id, host, user)));
+            res.end(JSON.stringify(getMessage(json.id, server.host, user)));
           }
         }else if(json.type == 'write'){
           delete json.type;
