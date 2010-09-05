@@ -25,7 +25,10 @@ function addUser(username, password){
     password: password
   };
   
-  //createPrivateMessage(serverpath+'u/'+username+'/search_query', username);
+  //createPrivateMessage(username, '', {read: true}); //create teh profile page.
+  //msgs[createPrivateMessage(username, 'inbox')].data.type = 'digest'; //private.
+  //msgs[createPrivateMessage(username, 'invites', {write_data: true})].data.type = 'digest'; //unreadable to all. writable to all.
+  
 }
 
 function b64_decode(str){
@@ -46,19 +49,29 @@ var globalacl = {
 	write_text: true
 };
 /*
-function createPrivateMessage(id, user){
+function createPrivateMessage(user, path, defaults){
+  if(path == ''){
+    var id = serverpath+'u/'+user;
+  }else{
+    var id = serverpath+'u/'+user+'/'+path;
+  }
   createMessage(id, true);
+  defaults = defaults || {};
   msgs[id].acl.def.read = false;
   msgs[id].acl.def.write_data = false;
   msgs[id].acl.def.write_text = false;
+  for(var i in defaults){
+    msgs[id].acl.def[i] = defaults[i];
+  }
   msgs[id].acl[server.host] = {};
   msgs[id].acl[server.host][user] = {
     read: true,
     write_data: true,
     write_text: true
   }
+  return id;
 }
-*/
+//*/
 
 function getACL(msg, host, user){
 	//Chain: User > Host > Message > Server
@@ -90,6 +103,8 @@ function createMessageCore(id){
     v: 0,
     clients: [], //another class of subscribers
     subscribers: [],
+    ctime: 0, //this is the last time of the last edit of the message or the children. whichever is newer.
+    time: 0, //this is the time of the last edit of the message
     text: ''
   }
 }
@@ -135,15 +150,17 @@ function subscribe(id, host){
 	if(msg){
 	  var can = getACL(msg, host);
 	  if(host != server.host && can.read)
-    	if(msg.subscribers.indexOf(host) == -1) msg.subscribers.push(host);
+    	if(msg.subscribers.indexOf(host) == -1) msg.subscribers.push('http://'+host+'/push');
 	}
 }
 
 
 function subscribeClient(id, URL){
-	var msg = msgs[id];
-	if(msg){
-	  if(msg.clients.indexOf(host) == -1) msg.clients.push(host);
+  if(URL){
+	  var msg = msgs[id];
+	  if(msg){
+	    if(msg.clients.indexOf(URL) == -1) msg.clients.push(URL);
+	  }
 	}
 }
 
@@ -249,49 +266,70 @@ function applyDelta(id, delta, host, user){
     if(children.indexOf(url) == -1){
       //added new child
       children.splice(children.indexOf(url), 1); //remove from childrens list
+      msgs[children[i]].parents.push(id);
     }
   });
+  
   if(children.length > 0){
     for(var i = children.length; i--;){
-      children[i] //this child was REMOVED
+      msgs[children[i]].parents.splice(msgs[children[i]].parents.indexOf(id)) //this child was REMOVED
     }
   }
 	
+	var ctime = +new Date;
 	
-	msg.time = +new Date;
+	msg.time = ctime;
+	msg.ctime = ctime; //we know this is the newest. now.
+	
 	msg.v++; //increment version
 	msg.history[msg.v] = delta;
 	
+	
+	var propagate_ctime = function(msg){
+	  for(var l = msg.parents.length; l--;){
+	    msgs[msg.parents[l]].ctime = ctime; //propagate CTIME!
+	    pushDelta(msgs[msg.parents[l]].clients, {
+	      id: msg.parents[l],
+	      ctime: ctime
+	    });
+	    propagate_ctime(msgs[msg.parents[l]]);
+	  }
+	};
+	propagate_ctime(msg);
+	
+	/*
 	var upath = serverpath+'u/', upl = upath.length;
 	for(var i in msgs){
 	  if(i.indexOf(upath) == 0){
 	    i.substr(upl);
 	  }
 	}
+	*/
 	
-	
-	for(var i = msg.subscribers.length; i--;){
+	pushDelta(msg.subscribers, delta);
+	  
+  //same thing for this type of situation. different for the recursive thingsies.
+	pushDelta(msg.clients, delta);
+}
+
+
+function pushDelta(group, delta){
+  var strdelta = JSON.stringify(delta);
+  
+	for(var i = group.length; i--;){
 	  var subscriber = url.parse('http://'+msg.subscribers[i]); //TODO: https
 	  console.log(subscriber);
 	  //TODO: deal with revoked permissions
 	  var client = http.createClient(subscriber.port, subscriber.hostname);
-    var request = client.request('POST', '/push', {
+    var request = client.request('POST', subscriber.pathname, {
       'host': server.host,
       'authorization': 'TFV3 TODO_IMPLEMENT_TOKEN_HANDLING'
     }); 
-    request.end(JSON.stringify(delta)); //TODO: cache stringified delta
-    console.log(JSON.stringify(delta));
+    request.end(strdelta);
+    
+    //TODO: if there was an error. remove from subscribers.
   }
-  
-  //same thing for this type of situation. different for the recursive thingsies.
-	for(var i = msg.clients.length; i--;){
-	  var subscriber = url.parse('http://'+msg.clients[i]); //TODO: https
-	  console.log(subscriber);
-	  //TODO: deal with revoked permissions
-	  var client = http.createClient(subscriber.port, subscriber.hostname);
-    var request = client.request('POST', subscriber.pathname); 
-    request.end(JSON.stringify(delta)); //TODO: cache stringified delta
-  }
+
 }
 
 
@@ -385,7 +423,7 @@ var listener = http.createServer(function (req, res) {
                 var msg = JSON.parse(all);
                 if(msg){
                   msgs[json.id] = msg;
-                  subscribe(json.id, host); //the requesting proxy server should also recieve updates
+                  subscribeClient(json.id, req.headers.subscribe);
                 }
                 res.end(JSON.stringify(getMessage(json.id, host, user)));
               })
@@ -394,7 +432,7 @@ var listener = http.createServer(function (req, res) {
             if(targetlocal){
               createMessage(json.id, user);
             }
-            subscribe(json.id, host); //the requesting proxy server should also recieve updates
+            subscribeClient(json.id, req.headers.subscribe);
             res.end(JSON.stringify(getMessage(json.id, host, user)));
           }
         }else if(json.type == 'write'){
@@ -402,13 +440,13 @@ var listener = http.createServer(function (req, res) {
           if(targetlocal){
             //target is local. go apply the delta.
           	createMessage(json.id, user); //TODO: allow ACL to restrict creation of new messages to outsiders
-            subscribe(json.id, host); //the requesting proxy server should also recieve updates
+            subscribeClient(json.id, req.headers.subscribe);
             applyDelta(json.id, json, server.host, user);            
             res.writeHead(200);
             res.end('{}');
           }else{ //TODO: potential issue with subscribing without loading first.
             //target is not local. go proxy request to the target server
-            subscribe(json.id, host); //the requesting proxy server should also recieve updates
+            subscribeClient(json.id, req.headers.subscribe);
             var client = http.createClient(target.port, target.hostname);
             var request = client.request('POST', '/', {
               'host': server.host,

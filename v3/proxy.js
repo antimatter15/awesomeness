@@ -13,9 +13,10 @@ var server = http.createServer(function (req, res) {
 			chunks += chunk;
 		})
 		req.on('end', function(){
-			if(req.url == '/push'){
-				res.writeHead(200)
-			  push_updates(chunks);
+			var matchstr = '/session/';
+			if(req.url.substr(0,matchstr.length) == matchstr){
+			  var sid = req.url.substr(matchstr.length);
+			  sock.clientsIndex[sid].send(chunks);
 			}
 		})
 	}else if(req.method == 'GET'){
@@ -67,10 +68,6 @@ function b64_encode(str){
 }
 
 
-function push_updates(json){
-	sock.broadcast(json)
-}
-
 // socket.io, I choose you
 // simplest chat application evar
 var sock = io.listen(server);
@@ -89,7 +86,7 @@ sock.on('connection', function(client){
 			var hclient = http.createClient(target.port, target.hostname);
       var request = hclient.request('POST', '/', {
         'authorization': 'Basic '+b64_encode('admin:password'),
-        'host': 'localhost:8124'
+        'subscribe': 'http://localhost:8124/session/'+client.sessionId
       }); 
       request.end(JSON.stringify(json));
       request.on('response', function(response){
