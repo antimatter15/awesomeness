@@ -8,17 +8,22 @@ var url = require('url'),
 var server = http.createServer(function (req, res) {
   var path = url.parse(req.url).pathname;
 	if(req.method == 'POST'){
-		var chunks = '';
-		req.on('data', function(chunk){
-			chunks += chunk;
-		})
-		req.on('end', function(){
-			var matchstr = '/session/';
-			if(req.url.substr(0,matchstr.length) == matchstr){
-			  var sid = req.url.substr(matchstr.length);
-			  sock.clientsIndex[sid].send(chunks);
-			}
-		})
+		var matchstr = '/session/';
+		if(req.url.substr(0,matchstr.length) == matchstr){
+  		var sid = req.url.substr(matchstr.length);
+  		if(!sock.clientsIndex[sid]){
+  		  res.writeHead(404);
+  		  res.end();
+  		}
+		  var chunks = '';
+		  req.on('data', function(chunk){
+			  chunks += chunk;
+		  })
+		  req.on('end', function(){
+			    sock.clientsIndex[sid].send(chunks);
+			    res.end();
+		  })
+		}
 	}else if(req.method == 'GET'){
 		//webinterface is testing ONLY
 		if(req.url == '/' || req.url == ''){
@@ -74,7 +79,7 @@ var sock = io.listen(server);
 
 sock.on('connection', function(client){
   console.log('new client connection',client.sessionId);
-  client.send('connected');
+  //client.send('connected');
 	client.on('message', function(str){
 	  var message = JSON.parse(str);
 	  console.log(message)
@@ -94,7 +99,9 @@ sock.on('connection', function(client){
         var all = '';response.on('data', function(chunk){all += chunk});
         response.on('end', function(){
           console.log('getted response');
-          client.send(all);
+          if(all.length > 0){
+            client.send(all);
+          }
         })
       });
 		}

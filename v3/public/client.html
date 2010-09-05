@@ -12,7 +12,14 @@ io.setPath('/Socket.IO/');
 var socket = new io.Socket(null, {port: 8124}); //todo: get the port from location
 socket.connect();
 socket.on('message', function(obj){
-  console.log(obj);
+  var data = JSON.parse(obj);
+  console.log(data.type, data);
+  if(data.type == 'write'){
+    applyDelta(data.id, data);
+  }else if(data.type == 'load'){
+    msgs[data.id] = data;
+    delete msgs[data.id].type;
+  }
 });
 
 function send(obj){
@@ -35,12 +42,6 @@ var msgs = {};
 function applyDelta(id, delta){
 	var msg = msgs[id];
 
-	delta.host = host; //dont trust the info supplied by the fed server completely
-	delta.user = user || delta.user;
-	//delta SHOULD contain a user attribute!
-	
-  subscribe(id, host);
-  
 	if(delta.v != msg.v + 1){
 		//version mismatch. FAIL
 		console.log('Version mismatch Expected:'+(msg.v+1)+' Got:'+delta.v)

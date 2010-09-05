@@ -175,8 +175,10 @@ function getMessage(id, host, user){
 	
 	if(can.read){
 	  var n = {
+	    type: 'load',
 	    id: id,
 		  time: msg.time,
+		  ctime: msg.ctime,
 		  v: msg.v
 	  };
 	
@@ -282,6 +284,7 @@ function applyDelta(id, delta, host, user){
 	msg.time = ctime;
 	msg.ctime = ctime; //we know this is the newest. now.
 	delta.time = ctime;
+	delta.type = 'write';
 	
 	msg.v++; //increment version
 	msg.history[msg.v] = delta;
@@ -326,7 +329,12 @@ function pushDelta(group, delta){
     var request = client.request('POST', subscriber.pathname, {
       'host': server.host,
       'authorization': 'TFV3 TODO_IMPLEMENT_TOKEN_HANDLING'
-    }); 
+    });
+    request.on('response', function (response) {
+      if(response.statusCode == 404){
+        //TODO: wrap it all in a closure and delete the thing
+      }
+    });
     request.end(strdelta);
     
     //TODO: if there was an error. remove from subscribers.
@@ -343,6 +351,7 @@ var listener = http.createServer(function (req, res) {
   
 	var chunks = ''; req.on('data', function(chunk){chunks += chunk});
 	req.on('end', function(){
+	  try{
 		var json = JSON.parse(chunks);
 		
 		//the JSON.id is the magical part
@@ -445,7 +454,7 @@ var listener = http.createServer(function (req, res) {
             subscribeClient(json.id, req.headers.subscribe);
             applyDelta(json.id, json, server.host, user);            
             res.writeHead(200);
-            res.end('{}');
+            res.end();
           }else{ //TODO: potential issue with subscribing without loading first.
             //target is not local. go proxy request to the target server
             subscribeClient(json.id, req.headers.subscribe);
@@ -465,7 +474,7 @@ var listener = http.createServer(function (req, res) {
               })
               */
             	res.writeHead(200);
-              res.end('{}'); //usually ops dont actually return data. right?
+              res.end(); //usually ops dont actually return data. right?
             });
             
           }
@@ -517,6 +526,9 @@ var listener = http.createServer(function (req, res) {
           check_token();
         }, 100);
       }
+	  }
+	  }catch(err){
+	    console.log(err);
 	  }
 	})
 });
