@@ -91,5 +91,31 @@ I don't have any code yet, because I might actually just abandon this project ag
 			
 	* Now, here's the weird thing. You're never going to actually access that URL. Instead, you're going to access the host URL via a POST filled with JSON and the actual ID as part of the {id: ""} JSON request body.
 		* You might ask why? Isn't REST ALWAYS SUPER INSANELY AWESOME? Well, yeah, but one thing I like more than REST, is the ability to have pretty much the same protocol for federation and agent communication. (If i were to use a REST protocol, then you would end up doing a GET to http://myserv.com/http://yourserv.com/m/blahblah for Federation to agent communication and http://yourserv.com/m/blah for federation. And also http://myserv.com/http://myserv.com/blahblah So this avoids the problem)
+		* This is quite similar to how Awesomeness3 worked.
 	
-	* You include an Authorization HTTP header with your request and possibly abuse the HTTP Host header.
+	* You include an Authorization HTTP header for signatures (host signature OR agent signatures) with your request and possibly abuse the HTTP Host header with an actual URL. 
+	
+	
+Here's how your server should probably handle requests, or at least this is how Awesomeness3 worked.
+
+1. When your server gets a request, classify the type of signature. If it's from another federation server, continue to F1. If it's from an Agent, go to A1
+
+Federation (F)
+
+1. Since it's from federation, you already know that the target is your server. So make sure that the target URL is your's or else explode.
+2. Subscribe the requesting federation server to updates to the target message.
+3. Go to L1
+
+Agent (A)
+
+1. Check the target URL, if it's local, head on over to L1. If it's external, go to X1.
+2. Subscribe the agent to the message.
+
+Local (L)
+
+1. Apply the delta to the local message.
+2. Propagate changes to servers that subscribe.
+
+External (X)
+
+1. Go send the delta to the actual target server.
