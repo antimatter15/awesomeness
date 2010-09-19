@@ -25,7 +25,7 @@ Messages can embed other messages, leading to nested conversations.
 
 A type of message called a "gadget" could exist, which would contain a metadata object called "url". The client would load that page in an iframe and make a postMessage based API available to the embedded page so it can edit it's own metadata.
 
-__What happened to versions 1, 2 and 3?__ I killed them.
+__What happened to versions 1, 2 and 3?__ I killed them. There were several issues, they were profoundly limited. None of them supported persistent storage, and were pretty dependent on Node.
 
 __Protocol Design Goals__
 
@@ -42,3 +42,42 @@ __Reference Implementation__
 * Node.JS For the Win.
 
 * MongoDB, because all we really need is a searchable persistent hash table. However, of time of writing, I'm not aware if it's possible to set a list of queries and have a callback trigger whenever a matching search is identified. However, since scalability isn't absolutely critical to this implementation, having a list of queries and running them every time an operation is sent can't be that bad.
+
+__Protocol Specification__
+
+I don't have any code yet, because I might actually just abandon this project again, it's pretty complex and there's gonna be some other interesting developments like Diaspora*, Twitter, Facebook, Google Wave (in a box) which have much larger development teams. Either way, if anyone thinks this is a good idea, they should probably know what my ideas were.
+
+* Everything is treated like a message.
+
+	* The medium is the message. I just wanted to stick this quote in here.
+
+	* Exception: Registration. I have NO CLUE how to handle this. The thing is that everything else a federation server does isn't user-facing. Except registration sort of needs to be.
+	
+	* Searches are also messages, or at least they're treated like messages. Really, messages are just objects that can be subscribed to, undergo changes (and the changes are stored as deltas in history) and contain metadata in the form of private, data and acl optionally with a text attribute. So search is just a special dynamic message that can behave like any other, Playback can be used to see what items were in a search in the past (however, note that the playback will only include the number of items in the inbox, not the state of the messages referred to by the search).
+	
+	* Inboxes/Folders are messages. It's a more normal type of message called a Digest. It is unreadable to the world and only readable to the user who owns it unless it's explicitly exposed. A search is also the digest type of message (however a search obviously has some more magical properties). The data object is filled with a list of IDs of messages and nothing else.
+	
+	* Conversations don't exist. There's no abstract object that contains sub-messages. There are only normal messages. Actually, this is mostly a lie.
+	
+	* Root Messages. They're basically normal messages. The only difference is that its the original root of a message. You might ask why bother? The simple answer is that when you're searching, you probably find a specific message but not in context of parents. Each message has a metadata attribute that refers to the root message so someone can easily find the root.
+		
+	* Messages are Messages. This is the greatest and most brilliant design decision that greatly departs from the usual design of all systems.
+
+	* This is actually more of a use-case thing, but you can fork a subthread simply by de-referencing it from the parent and recursively setting the root to the new message.
+	
+	* Messages have URLs, and there are certain important things regarding formatting.
+		
+		* They can start with anything. The host is defined as the part of the URL that precedes m/ (notice italicized text below)
+			
+			* _http://blah.whee.com/_m/message232ew
+			* _https://failure.com/elitistland.php?i=_m/adofiwjtjasdjf
+			
+		* Search also follows certain rules (query must be URL encoded)
+				
+			* _http://blah.whee.com/_s/QUERY
+			* _https://failure.com/elitistland.php?i=_s/QUERY
+
+		* User profiles don't have any real restriction, but there's a nice convention that you really should follow
+		
+			* _http://blah.whee.com/_u/smileybob
+			* _https://failure.com/elitistland.php?i=_u/antimatter15
