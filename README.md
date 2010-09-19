@@ -31,13 +31,13 @@ __Protocol Design Goals__
 
 * It should be easily portable, and it should be possible to make one in PHP without .htaccess or mod_rewrite
 
-* It should probably be REST-ish. Something that for some reason I didn't do for the last versions but I keep forgetting the reason, so I'll make the mistake again this time but hopefully this time the mistake will work.
-
 * It should be HTTP-ONLY. Also, no long-polling, hanging-gets. Pub/Sub is only available to web-accessible domains. The purpose of a user agent proxy is to convert these actions into WebSockets, Hanging-Gets, XMPP, etc. (Rationale: It makes the protocol simpler, and allows fully functioning implementations to be written for Google App Engine and in PHP)
 	
 	
 	
 __Reference Implementation__
+
+If I were actually making this, then this is what I would use.
 
 * Node.JS For the Win.
 
@@ -65,19 +65,31 @@ I don't have any code yet, because I might actually just abandon this project ag
 
 	* This is actually more of a use-case thing, but you can fork a subthread simply by de-referencing it from the parent and recursively setting the root to the new message.
 	
+	
 	* Messages have URLs, and there are certain important things regarding formatting.
 		
-		* They can start with anything. The host is defined as the part of the URL that precedes m/ (notice italicized text below)
+		* They can start with anything. The host is defined as the part of the URL before (and including) $ (notice italicized text below). 
 			
-			* _http://blah.whee.com/_m/message232ew
-			* _https://failure.com/elitistland.php?i=_m/adofiwjtjasdjf
+			* _http://blah.whee.com/$_m/message232ew
+			* _https://failure.com/elitistland.php?i=$_m/adofiwjtjasdjf
 			
 		* Search also follows certain rules (query must be URL encoded)
 				
-			* _http://blah.whee.com/_s/QUERY
-			* _https://failure.com/elitistland.php?i=_s/QUERY
+			* _http://blah.whee.com/$_s/QUERY
+			* _https://failure.com/elitistland.php?i=$_s/QUERY
 
 		* User profiles don't have any real restriction, but there's a nice convention that you really should follow
 		
-			* _http://blah.whee.com/_u/smileybob
-			* _https://failure.com/elitistland.php?i=_u/antimatter15
+			* _http://blah.whee.com/$_u/smileybob
+			* _https://failure.com/elitistland.php?i=$_u/antimatter15
+			
+		* Push Notifications aren't really messages. But i'll include it here where all the other URLS are too.
+		
+			* _http://blah.whee.com/$_push
+			* _https://failure.com/elitistland.php?i=$_push
+		
+			
+	* Now, here's the weird thing. You're never going to actually access that URL. Instead, you're going to access the host URL via a POST filled with JSON and the actual ID as part of the {id: ""} JSON request body.
+		* You might ask why? Isn't REST ALWAYS SUPER INSANELY AWESOME? Well, yeah, but one thing I like more than REST, is the ability to have pretty much the same protocol for federation and agent communication. (If i were to use a REST protocol, then you would end up doing a GET to http://myserv.com/http://yourserv.com/m/blahblah for Federation to agent communication and http://yourserv.com/m/blah for federation. And also http://myserv.com/http://myserv.com/blahblah So this avoids the problem)
+	
+	* You include an Authorization HTTP header with your request and possibly abuse the HTTP Host header.
