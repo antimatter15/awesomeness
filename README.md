@@ -27,5 +27,13 @@ A type of message called a "gadget" could exist, which would contain a metadata 
 
 _What happened to versions 1, 2 and 3?_ I killed them.
 
-_Process_
-Each federation server keeps a copy of every message that was ever requested by a user.
+_Protocol Design Goals_
+	* It should be easily portable, and it should be possible to make one in PHP without .htaccess or mod_rewrite
+	* It should probably be REST-ish. Something that for some reason I didn't do for the last versions but I keep forgetting the reason, so I'll make the mistake again this time but hopefully this time the mistake will work.
+	* It should be HTTP-ONLY. Also, no long-polling, hanging-gets. Pub/Sub is only available to web-accessible domains. The purpose of a user agent proxy is to convert these actions into WebSockets, Hanging-Gets, XMPP, etc. (Rationale: It makes the protocol simpler, and allows fully functioning implementations to be written for Google App Engine and in PHP)
+	
+	
+	
+_Reference Implementation_
+	* Node.JS For the Win.
+	* MongoDB, because all we really need is a searchable persistent hash table. However, of time of writing, I'm not aware if it's possible to set a list of queries and have a callback trigger whenever a matching search is identified. However, since scalability isn't absolutely critical to this implementation, having a list of queries and running them every time an operation is sent can't be that bad.
