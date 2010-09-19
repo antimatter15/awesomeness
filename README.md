@@ -53,15 +53,15 @@ I don't have any code yet, because I might actually just abandon this project ag
 
 	* Exception: Registration. I have NO CLUE how to handle this. The thing is that everything else a federation server does isn't user-facing. Except registration sort of needs to be.
 	
-	* Searches are also messages, or at least they're treated like messages. Really, messages are just objects that can be subscribed to, undergo changes (and the changes are stored as deltas in history) and contain metadata in the form of private, data and acl optionally with a text attribute. So search is just a special dynamic message that can behave like any other, Playback can be used to see what items were in a search in the past (however, note that the playback will only include the number of items in the inbox, not the state of the messages referred to by the search).
+	* __Searches are also messages__, or at least they're treated like messages. Really, messages are just objects that can be subscribed to, undergo changes (and the changes are stored as deltas in history) and contain metadata in the form of private, data and acl optionally with a text attribute. So search is just a special dynamic message that can behave like any other, Playback can be used to see what items were in a search in the past (however, note that the playback will only include the number of items in the inbox, not the state of the messages referred to by the search).
 	
-	* Inboxes/Folders are messages. It's a more normal type of message called a Digest. It is unreadable to the world and only readable to the user who owns it unless it's explicitly exposed. A search is also the digest type of message (however a search obviously has some more magical properties). The data object is filled with a list of IDs of messages and nothing else.
+	* __Inboxes/Folders are messages__. It's a more normal type of message called a Digest. It is unreadable to the world and only readable to the user who owns it unless it's explicitly exposed. A search is also the digest type of message (however a search obviously has some more magical properties). The data object is filled with a list of IDs of messages and nothing else.
 	
 	* Conversations don't exist. There's no abstract object that contains sub-messages. There are only normal messages. Actually, this is mostly a lie.
 	
 	* Root Messages. They're basically normal messages. The only difference is that its the original root of a message. You might ask why bother? The simple answer is that when you're searching, you probably find a specific message but not in context of parents. Each message has a metadata attribute that refers to the root message so someone can easily find the root.
 		
-	* Messages are Messages. This is the greatest and most brilliant design decision that greatly departs from the usual design of all systems.
+	* __Messages are Messages__. This is the greatest and most brilliant design decision that greatly departs from the usual design of all systems.
 
 	* This is actually more of a use-case thing, but you can fork a subthread simply by de-referencing it from the parent and recursively setting the root to the new message.
 	
